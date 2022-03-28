@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import time
 from Vue.Proxy import Proxy, effect
 from Vue import computed, watch
@@ -16,6 +18,7 @@ def test_computed():
   sum = computed(lambda: obj['foo'] + obj['bar'])
 
   def effect_lambda():
+    # 在副作用函数中读取计算属性的值
     print('sum: ', sum['value'])
 
   effect(effect_lambda)
