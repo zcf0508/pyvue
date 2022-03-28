@@ -1,0 +1,14 @@
+# Python:
+*.py[cod]
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+.history
+.idea
+.vscode
+venv
+
+Pipfile.lock
