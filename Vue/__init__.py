@@ -1,6 +1,6 @@
 import sys
 import threading
-from Vue.Proxy import Proxy, cleanup, effect, trigger, track
+from Vue.Proxy import cleanup, effect, trigger, track
 from Vue.utils import isoriginal
 
 job_queue = set()
@@ -107,7 +107,7 @@ def watch(source, cb, options={}):
 
     getter = fn
 
-  def effect_self_fn():
+  def effect_lambda_fn():
     return getter()
 
   global old_value
@@ -140,7 +140,7 @@ def watch(source, cb, options={}):
     else:
       job()
 
-  effect_fn = effect(effect_self_fn, {"scheduler": scheduler_fn, 'lazy': True})
+  effect_fn = effect(effect_lambda_fn, {"scheduler": scheduler_fn, 'lazy': True})
 
   if 'immediate' in options and options['immediate']:
     job()
