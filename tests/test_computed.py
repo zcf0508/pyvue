@@ -3,27 +3,26 @@ import unittest
 from Vue import computed
 from Vue.Proxy import Proxy, effect
 
+
 class TestComputed(unittest.TestCase):
+    def test_1(self):
 
-  def test_1(self):
+        data = {
+            "foo": 1,
+            "bar": 2,
+        }
+        obj = Proxy(data)
 
-    data = {
-        'foo': 1,
-        'bar': 2,
-    }
-    obj = Proxy(data)
+        sum = computed(lambda: obj["foo"] + obj["bar"])
 
-    sum = computed(lambda: obj['foo'] + obj['bar'])
+        def effect_lambda():
+            # 在副作用函数中读取计算属性的值
+            sum["value"]
 
-    def effect_lambda():
-      # 在副作用函数中读取计算属性的值
-      sum['value']
+        effect(effect_lambda)
 
-    effect(effect_lambda)
+        self.assertEqual(sum["value"], 3)
 
-    self.assertEqual(sum['value'], 3)
+        obj["foo"] += 1
 
-    obj['foo'] += 1
-
-    self.assertEqual(sum['value'], 4)
-
+        self.assertEqual(sum["value"], 4)
