@@ -202,56 +202,37 @@ class Proxy(object):
         else:
             raise Exception("Not iterable")
 
-    def items(self):
-        if self._is_iter_:
-            track(self, ITERATE_KEY)
-            for key in self._data.keys():
-                track(self, key)
-            return self._data.items()
-        else:
-            raise Exception("Not iterable")
+    def __len__(self):
+        track(self, ITERATE_KEY)
+        return len(self._data)
 
-    def keys(self):
-        if self._is_iter_:
-            track(self, ITERATE_KEY)
-            return self._data.keys()
-        else:
-            raise Exception("Not iterable")
+    def clear(self):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
+        if isinstance(self._data, dict):
+            for key in self._data:
+                del self._data[key]
+                trigger(self, key, TriggerType.DELETE)
+        elif isinstance(self._data, list):
+            for index, item in enumerate(self._data[:]):
+                del self._data[index]
+                trigger(self, index, TriggerType.DELETE)
 
-    def values(self):
-        if self._is_iter_:
-            track(self, ITERATE_KEY)
-            for key in self._data.keys():
-                track(self, key)
-            return self._data.values()
-        else:
-            raise Exception("Not iterable")
+    def copy(self):
+        from Vue import reactive, readonly, shallow_reactive, shallow_readonly
 
-    def get(self, key, default):
-        try:
-            res = self._data[key]
-            track(self, key)
-            return res
-        except KeyError:
-            return default
+        obj = (
+            (readonly(self._data) if self._is_readonly else reactive(self._data))
+            if not self._is_shallow
+            else (
+                shallow_readonly(self._data)
+                if self._is_readonly
+                else shallow_reactive(self._data)
+            )
+        )
 
-    def setdefault(self, key, default):
-        try:
-            return self._data[key]
-        except KeyError:
-            res = self._data.setdefault(key, default)
-
-            if self._is_shallow:
-                return res
-
-            trigger(self, key, TriggerType.ADD)
-
-            if res != None and isinstance(res, dict):
-                from Vue import reactive
-
-                self._data[key] = reactive(res)
-                return self._data[key]
-            return res
+        return obj
 
     def __delitem__(self, key):
         if hasattr(self._data, key):
@@ -281,19 +262,19 @@ class Proxy(object):
             trigger(self, key, TriggerType.DELETE)
         return res
 
-    def clear(self):
-        if self._is_readonly:
-            warn("This is readonly")
-            return
-        if isinstance(self._data, dict):
-            for key in self._data:
-                del self._data[key]
-                trigger(self, key, TriggerType.DELETE)
-        elif isinstance(self._data, list):
-            for index, item in enumerate(self._data[:]):
-                del self._data[index]
-                trigger(self, index, TriggerType.DELETE)
+    def remove(self, obj):
+        try:
+            index = 0
+            for i, item in enumerate(self._data):
+                if item == obj:
+                    index = i
+            res = self._data.remove(obj)
+            trigger(self, index, TriggerType.DELETE)
+            return res
+        except ValueError:
+            raise ValueError(f"{obj} not in list")
 
+    # dict 方法
     def update(self, obj):
         for key, value in obj.items():
             if key in self._data:
@@ -303,14 +284,61 @@ class Proxy(object):
             else:
                 self.setdefault(key, value)
 
+    def get(self, key, default):
+        try:
+            res = self._data[key]
+            track(self, key)
+            return res
+        except KeyError:
+            return default
+
+    def items(self):
+        if self._is_iter_:
+            track(self, ITERATE_KEY)
+            for key in self._data.keys():
+                track(self, key)
+            return self._data.items()
+        else:
+            raise Exception("Not iterable")
+
+    def keys(self):
+        if self._is_iter_:
+            track(self, ITERATE_KEY)
+            return self._data.keys()
+        else:
+            raise Exception("Not iterable")
+
     def popitem(self):
         key = list(self._data.keys())[-1]
         del self._data[key]
         trigger(self, key, TriggerType.DELETE)
 
-    def __len__(self):
-        track(self, ITERATE_KEY)
-        return len(self._data)
+    def setdefault(self, key, default):
+        try:
+            return self._data[key]
+        except KeyError:
+            res = self._data.setdefault(key, default)
+
+            if self._is_shallow:
+                return res
+
+            trigger(self, key, TriggerType.ADD)
+
+            if res != None and isinstance(res, dict):
+                from Vue import reactive
+
+                self._data[key] = reactive(res)
+                return self._data[key]
+            return res
+
+    def values(self):
+        if self._is_iter_:
+            track(self, ITERATE_KEY)
+            for key in self._data.keys():
+                track(self, key)
+            return self._data.values()
+        else:
+            raise Exception("Not iterable")
 
     # list 方法
 
@@ -345,18 +373,6 @@ class Proxy(object):
         trigger(self, index, TriggerType.ADD)
         return self._data
 
-    def remove(self, obj):
-        try:
-            index = 0
-            for i, item in enumerate(self._data):
-                if item == obj:
-                    index = i
-            res = self._data.remove(obj)
-            trigger(self, index, TriggerType.DELETE)
-            return res
-        except ValueError:
-            raise ValueError(f"{obj} not in list")
-
     def reverse(self):
         old_value = self._data[:]
         self._data.reverse()
@@ -369,28 +385,13 @@ class Proxy(object):
         if key and reverse:
             raise TypeError("sort() takes no positional arguments")
         old_value = self._data[:]
-        
+
         if key:
             self._data.sort(key=key)
         elif reverse:
             self._data.sort(reverse=reverse)
-            
+
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
             if old_item != new_item or type(old_item) != type(new_item):
                 trigger(self, index, TriggerType.SET)
         return self._data
-
-    def copy(self):
-        from Vue import reactive, readonly, shallow_reactive, shallow_readonly
-
-        obj = (
-            (readonly(self._data) if self._is_readonly else reactive(self._data))
-            if not self._is_shallow
-            else (
-                shallow_readonly(self._data)
-                if self._is_readonly
-                else shallow_reactive(self._data)
-            )
-        )
-
-        return obj
