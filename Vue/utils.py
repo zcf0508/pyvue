@@ -5,9 +5,9 @@ def isoriginal(value):
         return True
     if isinstance(value, complex):
         return True
-    if isinstance(value, str):
+    if isinstance(value, bool):
         return True
-    if isinstance(value, list):
+    if isinstance(value, str):
         return True
     if isinstance(value, tuple):
         return True
