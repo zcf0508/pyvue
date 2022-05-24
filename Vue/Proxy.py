@@ -217,7 +217,7 @@ class Proxy(object):
             return self._data.keys()
         else:
             raise Exception("Not iterable")
-    
+
     def values(self):
         if self._is_iter_:
             track(self, ITERATE_KEY)
@@ -226,7 +226,7 @@ class Proxy(object):
             return self._data.values()
         else:
             raise Exception("Not iterable")
-    
+
     def get(self, key, default):
         try:
             res = self._data[key]
@@ -307,7 +307,7 @@ class Proxy(object):
         key = list(self._data.keys())[-1]
         del self._data[key]
         trigger(self, key, TriggerType.DELETE)
-        
+
     def __len__(self):
         track(self, ITERATE_KEY)
         return len(self._data)
@@ -360,6 +360,14 @@ class Proxy(object):
     def reverse(self):
         old_value = self._data[:]
         self._data.reverse()
+        for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
+            if old_item != new_item or type(old_item) != type(new_item):
+                trigger(self, index, TriggerType.SET)
+        return self._data
+
+    def sort(self, key=None, reverse=False):
+        old_value = self._data[:]
+        self._data.sort(key, reverse)
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
             if old_item != new_item or type(old_item) != type(new_item):
                 trigger(self, index, TriggerType.SET)
