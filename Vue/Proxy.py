@@ -8,6 +8,7 @@ active_effect = None  # 用一个全局变量存贮被注册的副作用函数
 effect_stack = []  # effect 栈
 
 ITERATE_KEY = binascii.hexlify(os.urandom(8)).decode("utf-8")
+INDEX_KEY = binascii.hexlify(os.urandom(8)).decode("utf-8")
 
 TriggerType = Enum("TriggerType", ("SET", "ADD", "DELETE"))
 
@@ -107,6 +108,8 @@ def trigger(target, key, type):
     effects = deps_map.get(key)
     # 取得与 ITERATE_KEY 相关联的副作用函数
     iterate_effects = deps_map.get(ITERATE_KEY)
+    # 取得与 INDEX_KEY 相关联的副作用函数
+    index_effects = deps_map.get(INDEX_KEY)
 
     # 将 effects 转换为一个新的 set
     effect_to_run = set()
@@ -116,6 +119,7 @@ def trigger(target, key, type):
             # 如果 trigger 触发执行的副作用函数与当前正在执行的副作用函数相同，则不执行触发
             if effect_fn is not active_effect:
                 effect_to_run.add(effect_fn)
+
     if type == TriggerType.ADD or type == TriggerType.DELETE:
         # 将 ITERATE_KEY 相关联的副作用函数也添加到 effect_to_run
         if iterate_effects:
@@ -124,6 +128,14 @@ def trigger(target, key, type):
                 # 如果 trigger 触发执行的副作用函数与当前正在执行的副作用函数相同，则不执行触发
                 if effect_fn is not active_effect:
                     effect_to_run.add(effect_fn)
+
+    # 将 INDEX_KEY 相关联的副作用函数也添加到 effect_to_run
+    if index_effects:
+        for effect_fn in iter(index_effects):
+
+            # 如果 trigger 触发执行的副作用函数与当前正在执行的副作用函数相同，则不执行触发
+            if effect_fn is not active_effect:
+                effect_to_run.add(effect_fn)
 
     for effect_fn in iter(effect_to_run):
         # 如果一个副作用函数存在调度器，则调用该调度器，并将副作用函数作为参数传递
@@ -141,7 +153,13 @@ class Proxy(object):
         self._is_shallow = is_shallow
         self._is_readonly = is_readonly
 
-    def __getitem__(self, key):
+    def __getitem__(self, key=-1):
+        if isinstance(key, int) and key < 0:
+            key = len(self._data) + key
+
+        if isinstance(self._data, list):
+            if key > len(self._data) or key < 0:
+                raise IndexError("list index out of range")
         res = self._data[key]
         if self._is_shallow:
             return res
@@ -195,7 +213,9 @@ class Proxy(object):
 
     def get(self, key, default):
         try:
-            return self._data[key]
+            res = self._data[key]
+            track(self, key)
+            return res
         except KeyError:
             return default
 
@@ -227,13 +247,21 @@ class Proxy(object):
         else:
             raise KeyError
 
-    def pop(self, key, default):
+    def pop(self, key=-1, default=None):
+        if isinstance(key, int) and key < 0:
+            key = len(self._data) + key
         if self._is_readonly:
             warn("This is readonly")
             return
-        has_key = hasattr(self._data, key)
-        res = self._data.pop(key, default)
-        if has_key:
+        if isinstance(self._data, dict):
+            has_key = hasattr(self._data, key)
+            res = self._data.pop(key, default)
+            if has_key:
+                trigger(self, key, TriggerType.DELETE)
+        elif isinstance(self._data, list):
+            if key > len(self._data) or key < 0:
+                raise IndexError("list index out of range")
+            res = self._data.pop(key)
             trigger(self, key, TriggerType.DELETE)
         return res
 
@@ -241,6 +269,78 @@ class Proxy(object):
         if self._is_readonly:
             warn("This is readonly")
             return
-        trigger(self, key, TriggerType.DELETE)
         for key in self._data:
             del self._data[key]
+            trigger(self, key, TriggerType.DELETE)
+
+    # list 方法
+
+    def __len__(self):
+        track(self, ITERATE_KEY)
+        return len(self._data)
+
+    def append(self, value):
+        res = self._data.append(value)
+        trigger(self, len(self._data) - 1, TriggerType.ADD)
+        return res
+
+    def count(self, key):
+        num = 0
+        for index, item in enumerate(self._data):
+            if item == key:
+                num += 1
+        track(self, ITERATE_KEY)
+        return num
+
+    def extend(self, list):
+        self._data.extend(list)
+        trigger(self, len(self._data) - 1, TriggerType.ADD)
+        return self._data
+
+    def index(self, key):
+        try:
+            res = self._data.index(key)
+            track(self, INDEX_KEY)
+            return res
+        except ValueError:
+            raise ValueError(f"{key} is not in list")
+
+    def insert(self, index, obj):
+        self._data.insert(index, obj)
+        trigger(self, index, TriggerType.ADD)
+        return self._data
+
+    def remove(self, obj):
+        try:
+            index = 0
+            for i, item in enumerate(self._data):
+                if item == obj:
+                    index = i
+            res = self._data.remove(obj)
+            trigger(self, index, TriggerType.DELETE)
+            return res
+        except ValueError:
+            raise ValueError(f"{obj} not in list")
+
+    def reverse(self):
+        old_value = self._data[:]
+        self._data.reverse()
+        for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
+            if old_item != new_item or type(old_item) != type(new_item):
+                trigger(self, index, TriggerType.SET)
+        return self._data
+
+    def copy(self):
+        from Vue import reactive, readonly, shallow_reactive, shallow_readonly
+
+        obj = (
+            (readonly(self._data) if self._is_readonly else reactive(self._data))
+            if not self._is_shallow
+            else (
+                shallow_readonly(self._data)
+                if self._is_readonly
+                else shallow_reactive(self._data)
+            )
+        )
+
+        return obj

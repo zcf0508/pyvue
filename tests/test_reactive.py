@@ -185,3 +185,185 @@ class TestReactive(unittest.TestCase):
         obj["foo"]["bar"] += 1
 
         self.assertEqual(test_1_value, 2)
+
+    def test_list_1(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = ["foo"]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            obj[0]
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj[0] = "bar"
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_list_2(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = ["foo", "bar"]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for item in obj:
+                # print(item)
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.append("baz")
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_list_3(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = ["foo", "bar"]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for index, item in enumerate(obj):
+                # print(item)
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.pop()
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_list_4(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = ["foo", "bar"]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            len(obj)
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.pop()
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_list_5(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = ["foo", "bar"]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for index, item in enumerate(obj):
+                # print(item)
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.pop()
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_list_6(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = [1, 2]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            obj.count(1)
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.pop()
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_list_7(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = [1, 2, 3]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            obj.index(3)
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.insert(1, 2)
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_list_8(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = [1, 2, 3, 4]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            obj.index(3)
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.reverse()
+
+        self.assertEqual(test_1_value, 2 + len(obj) - (len(obj) % 2))  # 反转会导致整个列表都变化
