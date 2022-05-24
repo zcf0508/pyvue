@@ -1,7 +1,7 @@
 import sys
 import threading
 from typing import Set
-from Vue.Proxy import cleanup, effect, trigger, track
+from Vue.Proxy import Proxy, cleanup, effect, trigger, track
 from Vue.utils import isoriginal
 
 job_queue: Set = set()  # 定义一个任务队列
@@ -56,7 +56,7 @@ def computed(getter):
             dirty = True
 
             # 当计算属性以来的响应式数据变化时，手动调用 trigger 函数出发响应
-            trigger(obj, "value")
+            trigger(obj, "value", "SET")
 
     effect_fn = effect(getter, {"scheduler": scheduler_fn, "lazy": True})
 
@@ -192,3 +192,23 @@ def watch(source, cb, options={}):
     else:
         # 手动调用副作用函数，拿到的值就是旧值
         old_value = effect_fn()
+
+
+def create_reactive(obj, is_shallow=False, is_readonly=False):
+    return Proxy(obj, is_shallow, is_readonly)
+
+
+def reactive(obj):
+    return create_reactive(obj)
+
+
+def shallow_reactive(obj):
+    return create_reactive(obj, True)
+
+
+def readonly(obj):
+    return create_reactive(obj, False, True)
+
+
+def shallow_readonly(obj):
+    return create_reactive(obj, True, True)

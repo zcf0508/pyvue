@@ -1,8 +1,15 @@
+import binascii
+import os
 from typing import Dict
-
+from enum import Enum
+from warnings import warn
 
 active_effect = None  # 用一个全局变量存贮被注册的副作用函数
 effect_stack = []  # effect 栈
+
+ITERATE_KEY = binascii.hexlify(os.urandom(8)).decode("utf-8")
+
+TriggerType = Enum("TriggerType", ("SET", "ADD", "DELETE"))
 
 
 def cleanup(effect_fn):
@@ -58,13 +65,10 @@ def effect(fn, options={}):
     return effect_fn
 
 
-bucket:Dict = dict()  # 存储副作用函数的桶
+bucket: Dict = dict()  # 存储副作用函数的桶
 
 
 def track(target, key):
-    global bucket
-    global active_effect
-
     # 没有 active_effect ，直接return
     if not active_effect:
         return
@@ -93,10 +97,7 @@ def track(target, key):
     active_effect.deps.append(deps)
 
 
-def trigger(target, key):
-    global active_effect
-    global bucket
-
+def trigger(target, key, type):
     # 根据 target 从桶中取得 deps_map   key-->effects
     deps_map = bucket.get(target)
     if not deps_map:
@@ -104,32 +105,142 @@ def trigger(target, key):
 
     # 根据 key 取得所有副作用函数 effects
     effects = deps_map.get(key)
+    # 取得与 ITERATE_KEY 相关联的副作用函数
+    iterate_effects = deps_map.get(ITERATE_KEY)
+
+    # 将 effects 转换为一个新的 set
+    effect_to_run = set()
     if effects:
-        # 将 effects 转换为一个新的 set
-        effect_to_run = set()
         for effect_fn in iter(effects):
 
             # 如果 trigger 触发执行的副作用函数与当前正在执行的副作用函数相同，则不执行触发
             if effect_fn is not active_effect:
                 effect_to_run.add(effect_fn)
+    if type == TriggerType.ADD or type == TriggerType.DELETE:
+        # 将 ITERATE_KEY 相关联的副作用函数也添加到 effect_to_run
+        if iterate_effects:
+            for effect_fn in iter(iterate_effects):
 
-        for effect_fn in iter(effect_to_run):
-            # 如果一个副作用函数存在调度器，则调用该调度器，并将副作用函数作为参数传递
-            if "scheduler" in effect_fn.options and effect_fn.options["scheduler"]:
-                effect_fn.options["scheduler"](effect_fn)
-            else:
-                # 否则直接执行副作用函数
-                effect_fn()
+                # 如果 trigger 触发执行的副作用函数与当前正在执行的副作用函数相同，则不执行触发
+                if effect_fn is not active_effect:
+                    effect_to_run.add(effect_fn)
+
+    for effect_fn in iter(effect_to_run):
+        # 如果一个副作用函数存在调度器，则调用该调度器，并将副作用函数作为参数传递
+        if "scheduler" in effect_fn.options and effect_fn.options["scheduler"]:
+            effect_fn.options["scheduler"](effect_fn)
+        else:
+            # 否则直接执行副作用函数
+            effect_fn()
 
 
 class Proxy(object):
-    def __init__(self, data):
+    def __init__(self, data, is_shallow=False, is_readonly=False):
         self._data = data
+        self._is_iter_ = hasattr(data, "__iter__")
+        self._is_shallow = is_shallow
+        self._is_readonly = is_readonly
 
     def __getitem__(self, key):
-        track(self, key)
-        return self._data[key]  # 返回属性值
+        res = self._data[key]
+        if self._is_shallow:
+            return res
 
-    def __setitem__(self, key, value):
-        self._data[key] = value  # 设置属性值
-        trigger(self, key)
+        # 非只读的时候才需要建立响应联系
+        if not self._is_readonly:
+            track(self, key)
+
+        if res != None and isinstance(res, dict):
+
+            from Vue import reactive, readonly
+
+            self._data[key] = readonly(res) if self._is_readonly else reactive(res)
+            return self._data[key]
+
+        return res  # 返回属性值
+
+    def __setitem__(self, key, new_value):
+        if self._is_readonly:
+            warn(f"{key} is readonly")
+            return
+        old_value = self._data[key]
+        self._data[key] = new_value  # 设置属性值
+
+        # 比较新值与旧值，增加类型判断避免bool值与int值相等的问题
+        if old_value != new_value or type(old_value) != type(new_value):
+            trigger(self, key, TriggerType.SET)
+
+    def __iter__(self):
+        if self._is_iter_:
+            track(self, ITERATE_KEY)
+            return self._data.__iter__()
+        else:
+            raise Exception("Not iterable")
+
+    def __next__(self):
+        if self._is_iter_ and hasattr(self._data, "__next__"):
+            track(self, ITERATE_KEY)
+            return self._data.__next__()
+        else:
+            raise Exception("Not iterable")
+
+    def items(self):
+        if self._is_iter_:
+            track(self, ITERATE_KEY)
+            for key in self._data.keys():
+                track(self, key)
+            return self._data.items()
+        else:
+            raise Exception("Not iterable")
+
+    def get(self, key, default):
+        try:
+            return self._data[key]
+        except KeyError:
+            return default
+
+    def setdefault(self, key, default):
+        try:
+            return self._data[key]
+        except KeyError:
+            res = self._data.setdefault(key, default)
+
+            if self._is_shallow:
+                return res
+
+            trigger(self, key, TriggerType.ADD)
+
+            if res != None and isinstance(res, dict):
+                from Vue import reactive
+
+                self._data[key] = reactive(res)
+                return self._data[key]
+            return res
+
+    def __delitem__(self, key):
+        if hasattr(self._data, key):
+            if self._is_readonly:
+                warn(f"{key} is readonly")
+                return
+            del self._data[key]
+            trigger(self, key, TriggerType.DELETE)
+        else:
+            raise KeyError
+
+    def pop(self, key, default):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
+        has_key = hasattr(self._data, key)
+        res = self._data.pop(key, default)
+        if has_key:
+            trigger(self, key, TriggerType.DELETE)
+        return res
+
+    def clear(self):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
+        trigger(self, key, TriggerType.DELETE)
+        for key in self._data:
+            del self._data[key]
