@@ -186,6 +186,119 @@ class TestReactive(unittest.TestCase):
 
         self.assertEqual(test_1_value, 2)
 
+    def test_dict_8(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {"foo": 1}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            "foo" in obj
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj["foo"] += 1
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.setdefault("baz", []).append(1)
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_dict_9(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {"foo": 1}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for key in obj.keys():
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj["foo"] += 1
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.setdefault("baz", []).append(1)
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_dict_10(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {"foo": 1}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for key in obj.keys():
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj["foo"] += 1
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.update({"bar": 2})
+
+        self.assertEqual(test_1_value, 3)
+    
+    def test_dict_11(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {"foo": 1}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for value in obj.values():
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj["foo"] += 1
+
+        self.assertEqual(test_1_value, 3)
+
+        obj.update({"bar": 2})
+
+        self.assertEqual(test_1_value, 4)
+        
+        obj.popitem()
+
+        self.assertEqual(test_1_value, 5)
+        
+        
+
     def test_list_1(self):
         global test_1_value
         test_1_value = 1

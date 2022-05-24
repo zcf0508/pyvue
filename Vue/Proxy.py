@@ -211,6 +211,22 @@ class Proxy(object):
         else:
             raise Exception("Not iterable")
 
+    def keys(self):
+        if self._is_iter_:
+            track(self, ITERATE_KEY)
+            return self._data.keys()
+        else:
+            raise Exception("Not iterable")
+    
+    def values(self):
+        if self._is_iter_:
+            track(self, ITERATE_KEY)
+            for key in self._data.keys():
+                track(self, key)
+            return self._data.values()
+        else:
+            raise Exception("Not iterable")
+    
     def get(self, key, default):
         try:
             res = self._data[key]
@@ -269,15 +285,34 @@ class Proxy(object):
         if self._is_readonly:
             warn("This is readonly")
             return
-        for key in self._data:
-            del self._data[key]
-            trigger(self, key, TriggerType.DELETE)
+        if isinstance(self._data, dict):
+            for key in self._data:
+                del self._data[key]
+                trigger(self, key, TriggerType.DELETE)
+        elif isinstance(self._data, list):
+            for index, item in enumerate(self._data[:]):
+                del self._data[index]
+                trigger(self, index, TriggerType.DELETE)
 
-    # list 方法
+    def update(self, obj):
+        for key, value in obj.items():
+            if key in self._data:
+                if value != self._data[key]:
+                    trigger(self, key, TriggerType.SET)
+                    self._data[key] = value
+            else:
+                self.setdefault(key, value)
 
+    def popitem(self):
+        key = list(self._data.keys())[-1]
+        del self._data[key]
+        trigger(self, key, TriggerType.DELETE)
+        
     def __len__(self):
         track(self, ITERATE_KEY)
         return len(self._data)
+
+    # list 方法
 
     def append(self, value):
         res = self._data.append(value)
