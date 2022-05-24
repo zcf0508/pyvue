@@ -366,8 +366,15 @@ class Proxy(object):
         return self._data
 
     def sort(self, key=None, reverse=False):
+        if key and reverse:
+            raise TypeError("sort() takes no positional arguments")
         old_value = self._data[:]
-        self._data.sort(key, reverse)
+        
+        if key:
+            self._data.sort(key=key)
+        elif reverse:
+            self._data.sort(reverse=reverse)
+            
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
             if old_item != new_item or type(old_item) != type(new_item):
                 trigger(self, index, TriggerType.SET)

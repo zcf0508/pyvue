@@ -480,3 +480,25 @@ class TestReactive(unittest.TestCase):
         obj.reverse()
 
         self.assertEqual(test_1_value, 2 + len(obj) - (len(obj) % 2))  # 反转会导致整个列表都变化
+        
+    def test_list_9(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = [1, 2, 3, 4]
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            obj.index(3)
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.sort(reverse=True)
+
+        self.assertEqual(test_1_value, 2 + len(obj) - (len(obj) % 2))  # 反转会导致整个列表都变化
