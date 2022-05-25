@@ -1,7 +1,7 @@
 import unittest
 
 from Vue import reactive, shallow_reactive, readonly, shallow_readonly
-from Vue.Proxy import effect
+from Vue.Proxy import Proxy, effect
 
 
 class TestReactive(unittest.TestCase):
@@ -679,7 +679,7 @@ class TestReactive(unittest.TestCase):
         obj.symmetric_difference({3, 4, 5})
 
         self.assertEqual(test_1_value, 5)
-    
+
     def test_set_8(self):
         global test_1_value
         test_1_value = 1

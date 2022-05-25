@@ -2,7 +2,7 @@ import binascii
 import copy
 import enum
 import os
-from typing import Dict
+from typing import Dict, Generic, TypeVar
 from enum import Enum
 from warnings import warn
 
@@ -150,11 +150,11 @@ def trigger(target, key, type):
             effect_fn()
 
 
+T = TypeVar("T")
 
 
-
-class Proxy(object):
-    def __init__(self, data, is_shallow=False, is_readonly=False):
+class Proxy(Generic[T]):
+    def __init__(self, data: T, is_shallow=False, is_readonly=False):
         self._data = data
         self._is_iter_ = hasattr(data, "__iter__")
         self._is_shallow = is_shallow
@@ -562,12 +562,20 @@ class Proxy(object):
             return
         set_obj_tmp = copy.deepcopy(set_obj)
         for new_item in copy.deepcopy(set_obj_tmp):
-            if new_item not in self._data:
+            if (
+                isinstance(self._data, dict)
+                or isinstance(self._data, list)
+                or isinstance(self._data, set)
+            ) and new_item not in self._data:
                 self.add(new_item)
                 set_obj_tmp.discard(new_item)
 
         for new_item in set_obj_tmp:
-            if new_item in self._data:
+            if (
+                isinstance(self._data, dict)
+                or isinstance(self._data, list)
+                or isinstance(self._data, set)
+            ) and new_item in self._data:
                 self.discard(new_item)
 
         return self._data

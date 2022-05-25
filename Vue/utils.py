@@ -14,12 +14,15 @@ def isoriginal(value):
 
     return False
 
+
 def is_ref(value):
     res = False
     try:
-        if (value._v_is_ref or value["_v_is_ref"]) or (value.__dict__._v_is_ref or value.__dict__["_v_is_ref"]):
+        if (value._v_is_ref or value["_v_is_ref"]) or (
+            value.__dict__._v_is_ref or value.__dict__["_v_is_ref"]
+        ):
             res = True
     except:
         pass
-    
+
     return res

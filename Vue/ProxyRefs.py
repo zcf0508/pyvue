@@ -1,9 +1,13 @@
 from operator import truediv
+from typing import Generic, TypeVar
 
 from Vue.utils import is_ref
 
 
-class ProxyRefs:
+T = TypeVar("T")
+
+
+class ProxyRefs(Generic[T]):
     def __init__(self, o):
         self._data = o
 
@@ -17,6 +21,7 @@ class ProxyRefs:
             value.value = val
             return
         value = val
-    
-def proxy_refs(o):
+
+
+def proxy_refs(o: T) -> ProxyRefs[T]:
     return ProxyRefs(o)

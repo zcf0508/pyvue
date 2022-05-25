@@ -1,7 +1,6 @@
 import unittest
 
 from Vue import reactive, ref, to_ref, to_refs
-from Vue.Proxy import effect
 from Vue.ProxyRefs import ProxyRefs, proxy_refs
 
 
