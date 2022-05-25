@@ -706,3 +706,30 @@ class TestReactive(unittest.TestCase):
         obj.update({5})
 
         self.assertEqual(test_1_value, 3)
+        
+    def test_set_9(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for item in obj:
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        print(obj.union({2}))
+
+        self.assertEqual(test_1_value, 2)
+
+        print(obj.union({2},{5},{6}))
+
+        self.assertEqual(test_1_value, 2)

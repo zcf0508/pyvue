@@ -475,12 +475,7 @@ class Proxy(Generic[T]):
 
     def difference(self, set_obj):
         res = self._data.difference(set_obj)
-        if self._is_shallow:
-            return res
-
-        from Vue import reactive, readonly
-
-        return readonly(res) if self._is_readonly else reactive(res)
+        return res
 
     def discard(self, value):
         index = -1
@@ -496,15 +491,10 @@ class Proxy(Generic[T]):
 
     def intersection(self, set_obj, *args):
         if args:
-            res = self._data.intersection(set_obj, args)
+            res = self._data.intersection(set_obj, *args)
         else:
             res = self._data.intersection(set_obj)
-        if self._is_shallow:
-            return res
-
-        from Vue import reactive, readonly
-
-        return readonly(res) if self._is_readonly else reactive(res)
+        return res
 
     def intersection_update(self, set_obj, *args):
         if self._is_readonly:
@@ -512,7 +502,7 @@ class Proxy(Generic[T]):
             return
         old_value = copy.deepcopy(self._data)
         if args:
-            self._data.intersection_update(set_obj, args)
+            self._data.intersection_update(set_obj, *args)
         else:
             self._data.intersection_update(set_obj)
         for index, item in enumerate(old_value):
@@ -549,12 +539,7 @@ class Proxy(Generic[T]):
 
     def symmetric_difference(self, set_obj):
         res = self._data.symmetric_difference(set_obj)
-        if self._is_shallow:
-            return res
-
-        from Vue import reactive, readonly
-
-        return readonly(res) if self._is_readonly else reactive(res)
+        return res
 
     def symmetric_difference_update(self, set_obj: set):
         if self._is_readonly:
@@ -582,13 +567,8 @@ class Proxy(Generic[T]):
 
     def union(self, set_obj, *args):
         if args:
-            res = self._data.union(set_obj, args)
+            res = self._data.union(set_obj, *args)
         else:
             res = self._data.union(set_obj)
 
-        if self._is_shallow:
-            return res
-
-        from Vue import reactive, readonly
-
-        return readonly(res) if self._is_readonly else reactive(res)
+        return res
