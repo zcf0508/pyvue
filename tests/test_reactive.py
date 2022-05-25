@@ -96,7 +96,7 @@ class TestReactive(unittest.TestCase):
 
         obj["foo"] += 1
 
-        self.assertEqual(test_1_value, 4)
+        self.assertEqual(test_1_value, 3)
 
     def test_dict_4(self):
         global test_1_value
@@ -265,7 +265,7 @@ class TestReactive(unittest.TestCase):
         obj.update({"bar": 2})
 
         self.assertEqual(test_1_value, 3)
-    
+
     def test_dict_11(self):
         global test_1_value
         test_1_value = 1
@@ -287,17 +287,15 @@ class TestReactive(unittest.TestCase):
 
         obj["foo"] += 1
 
-        self.assertEqual(test_1_value, 3)
+        self.assertEqual(test_1_value, 2)
 
         obj.update({"bar": 2})
 
-        self.assertEqual(test_1_value, 4)
-        
+        self.assertEqual(test_1_value, 3)
+
         obj.popitem()
 
-        self.assertEqual(test_1_value, 5)
-        
-        
+        self.assertEqual(test_1_value, 4)
 
     def test_list_1(self):
         global test_1_value
@@ -480,7 +478,7 @@ class TestReactive(unittest.TestCase):
         obj.reverse()
 
         self.assertEqual(test_1_value, 2 + len(obj) - (len(obj) % 2))  # 反转会导致整个列表都变化
-        
+
     def test_list_9(self):
         global test_1_value
         test_1_value = 1

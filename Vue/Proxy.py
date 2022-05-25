@@ -220,16 +220,12 @@ class Proxy(object):
                 trigger(self, index, TriggerType.DELETE)
 
     def copy(self):
-        from Vue import reactive, readonly, shallow_reactive, shallow_readonly
+        from Vue import shallow_reactive, shallow_readonly
 
         obj = (
-            (readonly(self._data) if self._is_readonly else reactive(self._data))
-            if not self._is_shallow
-            else (
-                shallow_readonly(self._data)
-                if self._is_readonly
-                else shallow_reactive(self._data)
-            )
+            shallow_readonly(self._data)
+            if self._is_readonly
+            else shallow_reactive(self._data)
         )
 
         return obj
@@ -264,13 +260,12 @@ class Proxy(object):
 
     def remove(self, obj):
         try:
-            index = 0
+            index = -1
             for i, item in enumerate(self._data):
                 if item == obj:
                     index = i
-            res = self._data.remove(obj)
+            self._data.remove(obj)
             trigger(self, index, TriggerType.DELETE)
-            return res
         except ValueError:
             raise ValueError(f"{obj} not in list")
 
@@ -278,9 +273,9 @@ class Proxy(object):
     def update(self, obj):
         for key, value in obj.items():
             if key in self._data:
-                if value != self._data[key]:
-                    trigger(self, key, TriggerType.SET)
+                if value != self._data[key] or type(value) != type(self._data[key]):
                     self._data[key] = value
+                    trigger(self, key, TriggerType.SET)
             else:
                 self.setdefault(key, value)
 
@@ -295,8 +290,6 @@ class Proxy(object):
     def items(self):
         if self._is_iter_:
             track(self, ITERATE_KEY)
-            for key in self._data.keys():
-                track(self, key)
             return self._data.items()
         else:
             raise Exception("Not iterable")
@@ -313,29 +306,24 @@ class Proxy(object):
         del self._data[key]
         trigger(self, key, TriggerType.DELETE)
 
-    def setdefault(self, key, default):
-        try:
-            return self._data[key]
-        except KeyError:
-            res = self._data.setdefault(key, default)
+    def setdefault(self, key, default=None):
+        res = self._data.setdefault(key, default)
 
-            if self._is_shallow:
-                return res
-
-            trigger(self, key, TriggerType.ADD)
-
-            if res != None and isinstance(res, dict):
-                from Vue import reactive
-
-                self._data[key] = reactive(res)
-                return self._data[key]
+        if self._is_shallow:
             return res
+
+        trigger(self, key, TriggerType.ADD)
+
+        if res != None and isinstance(res, dict):
+            from Vue import reactive
+
+            self._data[key] = reactive(res)
+            return self._data[key]
+        return res
 
     def values(self):
         if self._is_iter_:
             track(self, ITERATE_KEY)
-            for key in self._data.keys():
-                track(self, key)
             return self._data.values()
         else:
             raise Exception("Not iterable")
@@ -343,26 +331,27 @@ class Proxy(object):
     # list 方法
 
     def append(self, value):
-        res = self._data.append(value)
+        self._data.append(value)
         trigger(self, len(self._data) - 1, TriggerType.ADD)
-        return res
 
-    def count(self, key):
+    def count(self, obj):
         num = 0
         for index, item in enumerate(self._data):
-            if item == key:
+            if item == obj:
+                track(self, index)
                 num += 1
         track(self, ITERATE_KEY)
         return num
 
     def extend(self, list):
+        olg_lenth = len(self._data)
         self._data.extend(list)
-        trigger(self, len(self._data) - 1, TriggerType.ADD)
-        return self._data
+        for index in range(olg_lenth, len(self._data)):
+            trigger(self, index, TriggerType.ADD)
 
-    def index(self, key):
+    def index(self, key, start=None, end=None):
         try:
-            res = self._data.index(key)
+            res = self._data.index(key, start, end)
             track(self, INDEX_KEY)
             return res
         except ValueError:
@@ -371,7 +360,6 @@ class Proxy(object):
     def insert(self, index, obj):
         self._data.insert(index, obj)
         trigger(self, index, TriggerType.ADD)
-        return self._data
 
     def reverse(self):
         old_value = self._data[:]
@@ -379,7 +367,6 @@ class Proxy(object):
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
             if old_item != new_item or type(old_item) != type(new_item):
                 trigger(self, index, TriggerType.SET)
-        return self._data
 
     def sort(self, key=None, reverse=False):
         if key and reverse:
@@ -394,4 +381,3 @@ class Proxy(object):
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
             if old_item != new_item or type(old_item) != type(new_item):
                 trigger(self, index, TriggerType.SET)
-        return self._data
