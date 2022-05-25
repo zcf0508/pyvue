@@ -22,7 +22,11 @@ def cleanup(effect_fn):
     # 遍历 effect_fn.deps 数组
     for dep in effect_fn.deps:
         # 将 effect_fn 从依赖集合中移除
-        dep.remove(effect_fn)
+        try:
+            dep.remove(effect_fn)
+        except BaseException as e:
+            # print(e)
+            pass
 
     # 重置 effect_fn.deps 数组
     effect_fn.deps = []
