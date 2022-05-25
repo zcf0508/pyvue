@@ -5,5 +5,5 @@
 # 进度
 - [x] computed
 - [x] watch
-- [ ] reactive
+- [x] reactive
 - [ ] ref

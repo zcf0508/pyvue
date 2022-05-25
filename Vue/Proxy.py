@@ -1,4 +1,6 @@
 import binascii
+import copy
+import enum
 import os
 from typing import Dict
 from enum import Enum
@@ -241,11 +243,22 @@ class Proxy(object):
             raise KeyError
 
     def pop(self, key=-1, default=None):
-        if isinstance(key, int) and key < 0:
-            key = len(self._data) + key
         if self._is_readonly:
             warn("This is readonly")
             return
+
+        if isinstance(self._data, set):
+            old_value = copy.deepcopy(self._data)
+            res = self._data.pop()
+            for index, item in enumerate(old_value):
+                if item == res:
+                    trigger(self, index, TriggerType.DELETE)
+                    break
+            return res
+
+        if isinstance(self._data, list) and isinstance(key, int) and key < 0:
+            key = len(self._data) + key
+
         if isinstance(self._data, dict):
             has_key = hasattr(self._data, key)
             res = self._data.pop(key, default)
@@ -259,25 +272,51 @@ class Proxy(object):
         return res
 
     def remove(self, obj):
-        try:
-            index = -1
-            for i, item in enumerate(self._data):
-                if item == obj:
-                    index = i
+        index = -1
+        for i, item in enumerate(self._data):
+            if item == obj:
+                index = i
+        
+        if index >=0:
+            if self._is_readonly:
+                warn("This is readonly")
+                return
             self._data.remove(obj)
             trigger(self, index, TriggerType.DELETE)
-        except ValueError:
-            raise ValueError(f"{obj} not in list")
+        else:
+            if isinstance(self._data,list):
+                raise ValueError(f"{obj} not in list")
+            if isinstance(self._data,set):
+                raise KeyError(f"{obj} not in set")
+
+
+    def update(self, obj):
+        if isinstance(self._data, set):
+            old_length = len(self._data)
+            will_add = False
+            for item in obj:
+                if item not in self._data:
+                    will_add = True
+            if will_add:
+                if self._is_readonly:
+                    warn("This is readonly")
+                    return
+                self._data.update(obj)
+                if old_length < len(self._data):
+                    trigger(self, len(self._data), TriggerType.ADD)
+        elif isinstance(self._data, dict):
+            for key, value in obj.items():
+                if key in self._data:
+                    if value != self._data[key] or type(value) != type(self._data[key]):
+                        if self._is_readonly:
+                            warn("This is readonly")
+                            return
+                        self._data[key] = value
+                        trigger(self, key, TriggerType.SET)
+                else:
+                    self.setdefault(key, value)
 
     # dict 方法
-    def update(self, obj):
-        for key, value in obj.items():
-            if key in self._data:
-                if value != self._data[key] or type(value) != type(self._data[key]):
-                    self._data[key] = value
-                    trigger(self, key, TriggerType.SET)
-            else:
-                self.setdefault(key, value)
 
     def get(self, key, default):
         try:
@@ -302,11 +341,18 @@ class Proxy(object):
             raise Exception("Not iterable")
 
     def popitem(self):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
         key = list(self._data.keys())[-1]
         del self._data[key]
         trigger(self, key, TriggerType.DELETE)
 
     def setdefault(self, key, default=None):
+        if key not in self._data.keys():
+            if self._is_readonly:
+                warn("This is readonly")
+                return
         res = self._data.setdefault(key, default)
 
         if self._is_shallow:
@@ -331,6 +377,9 @@ class Proxy(object):
     # list 方法
 
     def append(self, value):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
         self._data.append(value)
         trigger(self, len(self._data) - 1, TriggerType.ADD)
 
@@ -344,6 +393,9 @@ class Proxy(object):
         return num
 
     def extend(self, list):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
         olg_lenth = len(self._data)
         self._data.extend(list)
         for index in range(olg_lenth, len(self._data)):
@@ -351,17 +403,23 @@ class Proxy(object):
 
     def index(self, key, start=None, end=None):
         try:
-            res = self._data.index(key, start, end)
+            res = self._data.index(key, start or 0, end or len(self._data))
             track(self, INDEX_KEY)
             return res
         except ValueError:
             raise ValueError(f"{key} is not in list")
 
     def insert(self, index, obj):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
         self._data.insert(index, obj)
         trigger(self, index, TriggerType.ADD)
 
     def reverse(self):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
         old_value = self._data[:]
         self._data.reverse()
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
@@ -369,6 +427,9 @@ class Proxy(object):
                 trigger(self, index, TriggerType.SET)
 
     def sort(self, key=None, reverse=False):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
         if key and reverse:
             raise TypeError("sort() takes no positional arguments")
         old_value = self._data[:]
@@ -381,3 +442,136 @@ class Proxy(object):
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
             if old_item != new_item or type(old_item) != type(new_item):
                 trigger(self, index, TriggerType.SET)
+
+    # set 方法
+
+    def add(self, elmnt):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
+        old_length = len(self._data)
+        self._data.add(elmnt)
+        if len(self._data) > old_length:
+            trigger(self, len(self._data) - 1, TriggerType.ADD)
+
+    def difference_update(self, set_obj):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
+        old_value = copy.deepcopy(self._data)
+        self._data.difference_update(set_obj)
+        for index, item in enumerate(old_value):
+            if item not in self._data:
+                trigger(self, index, TriggerType.DELETE)
+
+    def difference(self, set_obj):
+        res = self._data.difference(set_obj)
+        if self._is_shallow:
+            return res
+
+        from Vue import reactive, readonly
+
+        return readonly(res) if self._is_readonly else reactive(res)
+
+    def discard(self, value):      
+        index = -1
+        for i, item in enumerate(self._data):
+            if item == value:
+                index = i
+        if index >= 0:
+            if self._is_readonly:
+                warn("This is readonly")
+                return
+            self._data.discard(value)
+            trigger(self, index, TriggerType.DELETE)
+
+    def intersection(self, set_obj, *args):
+        if args:
+            res = self._data.intersection(set_obj, args)
+        else:
+            res = self._data.intersection(set_obj)
+        if self._is_shallow:
+            return res
+
+        from Vue import reactive, readonly
+
+        return readonly(res) if self._is_readonly else reactive(res)
+
+    def intersection_update(self, set_obj, *args):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
+        old_value = copy.deepcopy(self._data)
+        if args:
+            self._data.intersection_update(set_obj, args)
+        else:
+            self._data.intersection_update(set_obj)
+        for index, item in enumerate(old_value):
+            if item not in self._data:
+                trigger(self, index, TriggerType.DELETE)
+
+    def isdisjoint(self, set_obj):
+        res = False
+        for index, item in enumerate(self._data):
+            if item in set_obj:
+                track(self, index)
+                res = True
+                break
+        return res
+
+    def issubset(self, set_obj):
+        res = True
+        for index, item in enumerate(self._data):
+            if item not in set_obj:
+                track(self, index)
+                res = False
+                break
+        return res
+
+    def issuperset(self, set_obj):
+        res = True
+        for set_item in set_obj:
+            if set_item not in self._data:
+                for index, item in enumerate(self._data):
+                    track(self, index)
+                res = True
+                break
+        return res
+
+    def symmetric_difference(self, set_obj):
+        res = self._data.symmetric_difference(set_obj)
+        if self._is_shallow:
+            return res
+
+        from Vue import reactive, readonly
+
+        return readonly(res) if self._is_readonly else reactive(res)
+
+    def symmetric_difference_update(self, set_obj: set):
+        if self._is_readonly:
+            warn("This is readonly")
+            return
+        set_obj_tmp = copy.deepcopy(set_obj)
+        for new_item in copy.deepcopy(set_obj_tmp):
+            if new_item not in self._data:
+                self.add(new_item)
+                set_obj_tmp.discard(new_item)
+
+        for new_item in set_obj_tmp:
+            if new_item in self._data:
+                self.discard(new_item)
+
+        return self._data
+
+    def union(self, set_obj, *args):
+        if args:
+            res = self._data.union(set_obj, args)
+        else:
+            res = self._data.union(set_obj)
+
+        if self._is_shallow:
+            return res
+
+        from Vue import reactive, readonly
+
+        return readonly(res) if self._is_readonly else reactive(res)

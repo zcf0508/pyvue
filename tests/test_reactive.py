@@ -500,3 +500,209 @@ class TestReactive(unittest.TestCase):
         obj.sort(reverse=True)
 
         self.assertEqual(test_1_value, 2 + len(obj) - (len(obj) % 2))  # 反转会导致整个列表都变化
+
+    def test_set_1(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for item in obj:
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.add(1)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.add(5)
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_set_2(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for item in obj:
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.difference_update({1, 2})
+
+        self.assertEqual(test_1_value, 4)
+
+        obj.difference({3, 4})
+
+        self.assertEqual(test_1_value, 4)
+
+    def test_set_3(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for item in obj:
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.discard(2)
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_set_4(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for item in obj:
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.intersection_update({1, 2})
+
+        self.assertEqual(test_1_value, 4)
+
+        obj.intersection({3, 4})
+
+        self.assertEqual(test_1_value, 4)
+
+    def test_set_5(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            print(obj.isdisjoint({4}))
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.discard(4)
+
+        self.assertEqual(test_1_value, 3)
+
+    def test_set_6(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            1 in obj
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.remove(1)
+
+        self.assertEqual(test_1_value, 3)
+
+        obj.pop()
+
+        self.assertEqual(test_1_value, 4)
+
+    def test_set_7(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for item in obj:
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.symmetric_difference_update({1, 2, 5})
+
+        self.assertEqual(test_1_value, 5)
+
+        obj.symmetric_difference({3, 4, 5})
+
+        self.assertEqual(test_1_value, 5)
+    
+    def test_set_8(self):
+        global test_1_value
+        test_1_value = 1
+
+        data = {1, 2, 3, 4}
+        obj = reactive(data)
+
+        def effect_lambda():
+            global test_1_value
+
+            for item in obj:
+                pass
+
+            test_1_value += 1
+
+        effect(effect_lambda)
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.update({2})
+
+        self.assertEqual(test_1_value, 2)
+
+        obj.update({5})
+
+        self.assertEqual(test_1_value, 3)
