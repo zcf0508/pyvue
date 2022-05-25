@@ -212,3 +212,33 @@ def readonly(obj):
 
 def shallow_readonly(obj):
     return create_reactive(obj, True, True)
+
+
+def ref(val):
+    return reactive({"_v_is_ref": True, "value": val})
+
+
+def to_ref(obj, key):
+    class ToRef:
+        def __init__(self, o):
+            self._v_is_ref = True
+            self._data = o
+
+        @property
+        def value(self):
+            return self._data[key]
+
+        @value.setter
+        def value(self, val):
+            self._data[key] = val
+
+    return ToRef(obj)
+
+
+def to_refs(obj):
+    ret = {}
+
+    for key in obj.keys():
+        ret.setdefault(key, to_ref(obj, key))
+
+    return ret

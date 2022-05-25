@@ -6,6 +6,8 @@ from typing import Dict
 from enum import Enum
 from warnings import warn
 
+from Vue.utils import is_ref
+
 active_effect = None  # 用一个全局变量存贮被注册的副作用函数
 effect_stack = []  # effect 栈
 
@@ -148,6 +150,9 @@ def trigger(target, key, type):
             effect_fn()
 
 
+
+
+
 class Proxy(object):
     def __init__(self, data, is_shallow=False, is_readonly=False):
         self._data = data
@@ -177,14 +182,19 @@ class Proxy(object):
             self._data[key] = readonly(res) if self._is_readonly else reactive(res)
             return self._data[key]
 
-        return res  # 返回属性值
+        return res.value if is_ref(res) else res  # 返回属性值
 
     def __setitem__(self, key, new_value):
         if self._is_readonly:
             warn(f"{key} is readonly")
             return
+        value = self._data[key]
         old_value = self._data[key]
-        self._data[key] = new_value  # 设置属性值
+
+        if is_ref(value):
+            value.value = new_value
+        else:
+            self._data[key] = new_value  # 设置属性值
 
         # 比较新值与旧值，增加类型判断避免bool值与int值相等的问题
         if old_value != new_value or type(old_value) != type(new_value):
@@ -276,19 +286,18 @@ class Proxy(object):
         for i, item in enumerate(self._data):
             if item == obj:
                 index = i
-        
-        if index >=0:
+
+        if index >= 0:
             if self._is_readonly:
                 warn("This is readonly")
                 return
             self._data.remove(obj)
             trigger(self, index, TriggerType.DELETE)
         else:
-            if isinstance(self._data,list):
+            if isinstance(self._data, list):
                 raise ValueError(f"{obj} not in list")
-            if isinstance(self._data,set):
+            if isinstance(self._data, set):
                 raise KeyError(f"{obj} not in set")
-
 
     def update(self, obj):
         if isinstance(self._data, set):
@@ -473,7 +482,7 @@ class Proxy(object):
 
         return readonly(res) if self._is_readonly else reactive(res)
 
-    def discard(self, value):      
+    def discard(self, value):
         index = -1
         for i, item in enumerate(self._data):
             if item == value:
