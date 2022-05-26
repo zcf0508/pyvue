@@ -1,7 +1,6 @@
 import binascii
 import copy
 import os
-from typing import Any, Union
 
 from Vue.Proxy import Proxy
 
@@ -10,12 +9,23 @@ Fragment = binascii.hexlify(os.urandom(8)).decode("utf-8")
 
 
 class RendererOption:
+    _engine = "text"
+
+    def render(self, vnode, container):
+        if vnode:
+            self.patch(container.get("_vnode", None), vnode, container)
+        else:
+            if container.get("_vnode", None):
+                self.unmount(container["_vnode"], container)
+        container.setdefault("_vnode", copy.deepcopy(vnode.__dict__)["_data"])
+        pass
+
     def create_element(self, tag: str):
         print(f"创建元素 {tag}")
         return {"tag": tag}
         pass
 
-    def mount_element(self, vnode: dict, container: dict):
+    def mount_element(self, vnode, container):
         el = self.create_element(vnode["type"])
         vnode.setdefault("el", el)
         if isinstance(vnode.get("children", ""), str):
@@ -31,12 +41,12 @@ class RendererOption:
         self.insert(el, container)
         pass
 
-    def set_element_text(self, el: dict, text: str):
+    def set_element_text(self, el, text):
         print(f"设置 {el} 的文本内容: {text}")
         el.setdefault("text", text)
         pass
 
-    def insert(self, el: dict, parent: dict, anchor=None):
+    def insert(self, el, parent, anchor=None):
         print(f"将 {el} 添加到 {parent} 下")
         if isinstance(parent.get("children", None), list):
             parent["children"].append(el)
@@ -52,7 +62,7 @@ class RendererOption:
     def set_text(self, el, text: str):
         pass
 
-    def patch(self, n1: Union[dict, None], n2: dict, container: dict):
+    def patch(self, n1, n2, container):
         # 如果 n1 存在，则对比 n1 和 n2 的类型
         if n1 and n1["type"] != n2["type"]:
             self.unmount(n1, container)
@@ -91,12 +101,12 @@ class RendererOption:
             pass
         pass
 
-    def patch_props(self, el: dict, key: str, pre_val: Any, next_val: Any):
+    def patch_props(self, el, key, pre_val, next_val):
         print(f"给 {el} 设置属性 {key} = {next_val}")
         el.setdefault(key, next_val)
         pass
 
-    def unmount(self, vnode: dict, container: dict):
+    def unmount(self, vnode, container):
         if vnode["type"] == Fragment:
             for child in vnode["children"]:
                 self.unmount(child, vnode)
@@ -117,7 +127,7 @@ class RendererOption:
             if len(container["children"]) == 0:
                 del container["children"]
 
-    def path_children(self, n1: dict, n2: dict, container: dict):
+    def path_children(self, n1, n2, container):
         # 判断新子节点的类型是否为文本节点
         if isinstance(n2.get("children", ""), str):
             # 旧子节点的类型有三种可能：没有子节点，文本子节点，以及一组子节点
@@ -152,7 +162,7 @@ class RendererOption:
 
         pass
 
-    def patch_element(self, n1: dict, n2: dict):
+    def patch_element(self, n1, n2):
         el = n2["el"] = n1["el"]
         old_props = n1["props"]
         new_props = n2["props"]
@@ -180,12 +190,7 @@ class Renderer:
         self._unmount = option.unmount
         self._patch = option.patch
         self._mount_element = option.mount_element
+        self._render = option.render
 
-    def render(self, vnode, container: dict):
-        if vnode:
-            self._patch(container.get("_vnode", None), vnode, container)
-        else:
-            if container.get("_vnode", None):
-                self._unmount(container["_vnode"], container)
-        container.setdefault("_vnode", copy.deepcopy(vnode.__dict__)["_data"])
-        pass
+    def render(self, vnode, container):
+        self._render(vnode, container)
