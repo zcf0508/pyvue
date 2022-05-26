@@ -1,7 +1,9 @@
 import copy
 from typing import Union
-from Vue.Proxy import Proxy
 
+from PyQt6.QtWidgets import QWidget, QLayout
+
+from Vue.Proxy import Proxy
 from Vue.Renderer import Fragment, RendererOption, Text
 
 
@@ -48,7 +50,14 @@ class Pyqt6RendererOption(RendererOption):
         pass
 
     def insert(self, el, parent, anchor=None):
-        el.setParent(parent)
+        print(el)
+        print(parent)
+        if hasattr(parent, "setLayout") and isinstance(el, QLayout):
+            parent.setLayout(el)
+        elif hasattr(parent, "addWidget") and isinstance(el, QWidget):
+            parent.addWidget(el)
+        else:
+            el.setParent(parent)
 
     def create_text(self, text):
         pass

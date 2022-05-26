@@ -42,29 +42,35 @@ class TestRenderer(unittest.TestCase):
         app = QApplication(sys.argv)
 
         vnode = reactive(
-            {"data": {"type": "QLabel", "props": {"text": "hello world."}}}
+            {
+                "data": {
+                    "type": "QHBoxLayout",
+                    "children": [
+                        {"type": "QPushButton", "props": {"text": "hello "}},
+                        {"type": "QPushButton", "props": {"text": "world."}},
+                    ],
+                }
+            }
         )
-
-        container = {"type": "root"}
 
         option = Pyqt6RendererOption()
 
         renderer = Renderer(option)
 
-        w = QWidget()
+        window = QWidget()
 
-        w.resize(250, 200)
-        w.move(300, 300)
-        w.setWindowTitle("hello")
+        window.resize(250, 200)
+        window.move(300, 300)
+        window.setWindowTitle("hello")
 
         @effect
         def render():
-            renderer.render(vnode["data"], w)
+            renderer.render(vnode["data"], window)
 
-        w.show()
+        window.show()
 
-        time.sleep(3)
-        
-        vnode["data"]["props"]["text"] = "hello pyvue!"
+        # time.sleep(3)
+
+        # vnode["data"]["props"]["text"] = "hello pyvue!"
 
         sys.exit(app.exec())
