@@ -164,6 +164,11 @@ class Proxy(Generic[T]):
         self._is_shallow = is_shallow
         self._is_readonly = is_readonly
 
+    def __str__(self) -> str:
+        return 'Proxy '+str(self._data)
+
+    __repr__ = __str__
+
     def __getitem__(self, key=-1):
         if isinstance(key, int) and key < 0:
             key = len(self._data) + key
