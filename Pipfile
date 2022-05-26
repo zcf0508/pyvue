@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-promisio = "*"
 pyqt6 = "*"
 
 [dev-packages]

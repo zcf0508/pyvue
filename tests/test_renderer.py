@@ -43,13 +43,11 @@ class TestRenderer(unittest.TestCase):
 
         vnode = reactive(
             {
-                "data": {
-                    "type": "QHBoxLayout",
-                    "children": [
-                        {"type": "QPushButton", "props": {"text": "hello "}},
-                        {"type": "QPushButton", "props": {"text": "world."}},
-                    ],
-                }
+                "type": "QHBoxLayout",
+                "children": [
+                    {"type": "QPushButton", "props": {"text": "hello "}},
+                    {"type": "QPushButton", "props": {"text": "world."}},
+                ],
             }
         )
 
@@ -65,12 +63,12 @@ class TestRenderer(unittest.TestCase):
 
         @effect
         def render():
-            renderer.render(vnode["data"], window)
+            renderer.render(vnode, window)
 
         window.show()
 
-        # time.sleep(3)
+        time.sleep(3)
 
-        # vnode["data"]["props"]["text"] = "hello pyvue!"
+        vnode["children"].pop()
 
         sys.exit(app.exec())

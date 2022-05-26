@@ -1,6 +1,5 @@
 import binascii
 import copy
-import enum
 import os
 from typing import Dict, Generic, TypeVar
 from enum import Enum
@@ -167,7 +166,7 @@ class Proxy(Generic[T]):
 
     @staticmethod
     def raw(target):
-        if isinstance(target,Proxy):
+        if isinstance(target, Proxy):
             res = target._data
         else:
             res = target
@@ -175,11 +174,11 @@ class Proxy(Generic[T]):
         if isinstance(res, dict):
             for key in res:
                 res[key] = Proxy.raw(res[key])
-                    
+
         if isinstance(res, list) or isinstance(res, set):
             for index, val in enumerate(res):
                 res[index] = Proxy.raw(res[index])
-                    
+
         return res
 
     def _auto_track(self, target, key):
@@ -245,7 +244,9 @@ class Proxy(Generic[T]):
         if not self._is_readonly:
             self._auto_track(self, key)
 
-        if res != None and isinstance(res, dict):
+        if res != None and (
+            isinstance(res, dict) or isinstance(res, list) or isinstance(res, set)
+        ):
 
             from Vue import reactive, readonly
 
@@ -304,12 +305,45 @@ class Proxy(Generic[T]):
                 self._auto_trigger(self, index, TriggerType.DELETE)
 
     def copy(self):
+        from Vue import reactive, readonly
+
+        obj = (
+            readonly(self._data, self)
+            if self._is_readonly
+            else reactive(self._data, self)
+        )
+
+        return obj
+    
+    def shallow_copy(self):
         from Vue import shallow_reactive, shallow_readonly
 
         obj = (
             shallow_readonly(self._data, self)
             if self._is_readonly
             else shallow_reactive(self._data, self)
+        )
+
+        return obj
+
+    def deepcopy(self):
+        from Vue import reactive, readonly
+
+        obj = (
+            readonly(self._data, None)
+            if self._is_readonly
+            else reactive(self._data, None)
+        )
+
+        return obj
+
+    def shallow_deepcopy(self):
+        from Vue import shallow_reactive, shallow_readonly
+
+        obj = (
+            shallow_readonly(self._data, None)
+            if self._is_readonly
+            else shallow_reactive(self._data, None)
         )
 
         return obj
