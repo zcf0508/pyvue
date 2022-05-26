@@ -158,11 +158,48 @@ T = TypeVar("T")
 
 
 class Proxy(Generic[T]):
-    def __init__(self, data: T, is_shallow=False, is_readonly=False):
+    def __init__(self, data: T, is_shallow=False, is_readonly=False, parent=None):
         self._data = data
         self._is_iter_ = hasattr(data, "__iter__")
         self._is_shallow = is_shallow
         self._is_readonly = is_readonly
+        self._parent = parent
+
+    def _auto_track(self, target, key):
+        try:
+            if self._parent:
+                if isinstance(self._parent._data, dict):
+                    for p_key, p_val in self._parent.items():
+                        if Proxy.is_equal(p_val, target):
+                            track(self._parent, p_key)
+                elif isinstance(self._parent._data, list) or isinstance(
+                    self._parent._data, set
+                ):
+                    for p_index, p_val in enumerate(self._parent):
+                        if Proxy.is_equal(p_val, target):
+                            track(self._parent, p_index)
+            else:
+                track(target, key)
+        except BaseException as e:
+            track(target, key)
+
+    def _auto_trigger(self, target, key, type):
+        try:
+            if self._parent:
+                if isinstance(self._parent._data, dict):
+                    for p_key, p_val in self._parent.items():
+                        if Proxy.is_equal(p_val, target):
+                            trigger(self._parent, p_key, TriggerType.SET)
+                elif isinstance(self._parent._data, list) or isinstance(
+                    self._parent._data, set
+                ):
+                    for p_index, p_val in enumerate(self._parent):
+                        if Proxy.is_equal(p_val, target):
+                            trigger(self._parent, p_index, TriggerType.SET)
+            else:
+                trigger(target, key, type)
+        except BaseException as e:
+            trigger(target, key, type)
 
     def __str__(self) -> str:
         return "Proxy " + str(self._data)
@@ -189,13 +226,15 @@ class Proxy(Generic[T]):
 
         # 非只读的时候才需要建立响应联系
         if not self._is_readonly:
-            track(self, key)
+            self._auto_track(self, key)
 
         if res != None and isinstance(res, dict):
 
             from Vue import reactive, readonly
 
-            self._data[key] = readonly(res) if self._is_readonly else reactive(res)
+            self._data[key] = (
+                readonly(res, self) if self._is_readonly else reactive(res, self)
+            )
             return self._data[key]
 
         return res.value if is_ref(res) else res  # 返回属性值
@@ -214,24 +253,24 @@ class Proxy(Generic[T]):
 
         # 比较新值与旧值，增加类型判断避免bool值与int值相等的问题
         if old_value != new_value or type(old_value) != type(new_value):
-            trigger(self, key, TriggerType.SET)
+            self._auto_trigger(self, key, TriggerType.SET)
 
     def __iter__(self):
         if self._is_iter_:
-            track(self, ITERATE_KEY)
+            self._auto_track(self, ITERATE_KEY)
             return self._data.__iter__()
         else:
             raise Exception("Not iterable")
 
     def __next__(self):
         if self._is_iter_ and hasattr(self._data, "__next__"):
-            track(self, ITERATE_KEY)
+            self._auto_track(self, ITERATE_KEY)
             return self._data.__next__()
         else:
             raise Exception("Not iterable")
 
     def __len__(self):
-        track(self, ITERATE_KEY)
+        self._auto_track(self, ITERATE_KEY)
         return len(self._data)
 
     def clear(self):
@@ -241,19 +280,19 @@ class Proxy(Generic[T]):
         if isinstance(self._data, dict):
             for key in self._data:
                 del self._data[key]
-                trigger(self, key, TriggerType.DELETE)
+                self._auto_trigger(self, key, TriggerType.DELETE)
         elif isinstance(self._data, list):
             for index, item in enumerate(self._data[:]):
                 del self._data[index]
-                trigger(self, index, TriggerType.DELETE)
+                self._auto_trigger(self, index, TriggerType.DELETE)
 
     def copy(self):
         from Vue import shallow_reactive, shallow_readonly
 
         obj = (
-            shallow_readonly(self._data)
+            shallow_readonly(self._data, self)
             if self._is_readonly
-            else shallow_reactive(self._data)
+            else shallow_reactive(self._data, self)
         )
 
         return obj
@@ -264,7 +303,7 @@ class Proxy(Generic[T]):
                 warn(f"{key} is readonly")
                 return
             del self._data[key]
-            trigger(self, key, TriggerType.DELETE)
+            self._auto_trigger(self, key, TriggerType.DELETE)
         else:
             raise KeyError
 
@@ -278,7 +317,7 @@ class Proxy(Generic[T]):
             res = self._data.pop()
             for index, item in enumerate(old_value):
                 if item == res:
-                    trigger(self, index, TriggerType.DELETE)
+                    self._auto_trigger(self, index, TriggerType.DELETE)
                     break
             return res
 
@@ -289,12 +328,12 @@ class Proxy(Generic[T]):
             has_key = hasattr(self._data, key)
             res = self._data.pop(key, default)
             if has_key:
-                trigger(self, key, TriggerType.DELETE)
+                self._auto_trigger(self, key, TriggerType.DELETE)
         elif isinstance(self._data, list):
             if key > len(self._data) or key < 0:
                 raise IndexError("list index out of range")
             res = self._data.pop(key)
-            trigger(self, key, TriggerType.DELETE)
+            self._auto_trigger(self, key, TriggerType.DELETE)
         return res
 
     def remove(self, obj):
@@ -308,7 +347,7 @@ class Proxy(Generic[T]):
                 warn("This is readonly")
                 return
             self._data.remove(obj)
-            trigger(self, index, TriggerType.DELETE)
+            self._auto_trigger(self, index, TriggerType.DELETE)
         else:
             if isinstance(self._data, list):
                 raise ValueError(f"{obj} not in list")
@@ -328,7 +367,7 @@ class Proxy(Generic[T]):
                     return
                 self._data.update(obj)
                 if old_length < len(self._data):
-                    trigger(self, len(self._data), TriggerType.ADD)
+                    self._auto_trigger(self, len(self._data), TriggerType.ADD)
         elif isinstance(self._data, dict):
             for key, value in obj.items():
                 if key in self._data:
@@ -337,7 +376,7 @@ class Proxy(Generic[T]):
                             warn("This is readonly")
                             return
                         self._data[key] = value
-                        trigger(self, key, TriggerType.SET)
+                        self._auto_trigger(self, key, TriggerType.SET)
                 else:
                     self.setdefault(key, value)
 
@@ -346,21 +385,21 @@ class Proxy(Generic[T]):
     def get(self, key, default):
         try:
             res = self._data[key]
-            track(self, key)
+            self._auto_track(self, key)
             return res
         except KeyError:
             return default
 
     def items(self):
         if self._is_iter_:
-            track(self, ITERATE_KEY)
+            self._auto_track(self, ITERATE_KEY)
             return self._data.items()
         else:
             raise Exception("Not iterable")
 
     def keys(self):
         if self._is_iter_:
-            track(self, ITERATE_KEY)
+            self._auto_track(self, ITERATE_KEY)
             return self._data.keys()
         else:
             raise Exception("Not iterable")
@@ -371,7 +410,7 @@ class Proxy(Generic[T]):
             return
         key = list(self._data.keys())[-1]
         del self._data[key]
-        trigger(self, key, TriggerType.DELETE)
+        self._auto_trigger(self, key, TriggerType.DELETE)
 
     def setdefault(self, key, default=None):
         if key not in self._data.keys():
@@ -383,18 +422,18 @@ class Proxy(Generic[T]):
         if self._is_shallow:
             return res
 
-        trigger(self, key, TriggerType.ADD)
+        self._auto_trigger(self, key, TriggerType.ADD)
 
         if res != None and isinstance(res, dict):
             from Vue import reactive
 
-            self._data[key] = reactive(res)
+            self._data[key] = reactive(res, self)
             return self._data[key]
         return res
 
     def values(self):
         if self._is_iter_:
-            track(self, ITERATE_KEY)
+            self._auto_track(self, ITERATE_KEY)
             return self._data.values()
         else:
             raise Exception("Not iterable")
@@ -406,15 +445,15 @@ class Proxy(Generic[T]):
             warn("This is readonly")
             return
         self._data.append(value)
-        trigger(self, len(self._data) - 1, TriggerType.ADD)
+        self._auto_trigger(self, len(self._data) - 1, TriggerType.ADD)
 
     def count(self, obj):
         num = 0
         for index, item in enumerate(self._data):
             if item == obj:
-                track(self, index)
+                self._auto_track(self, index)
                 num += 1
-        track(self, ITERATE_KEY)
+        self._auto_track(self, ITERATE_KEY)
         return num
 
     def extend(self, list):
@@ -424,12 +463,12 @@ class Proxy(Generic[T]):
         olg_lenth = len(self._data)
         self._data.extend(list)
         for index in range(olg_lenth, len(self._data)):
-            trigger(self, index, TriggerType.ADD)
+            self._auto_trigger(self, index, TriggerType.ADD)
 
     def index(self, key, start=None, end=None):
         try:
             res = self._data.index(key, start or 0, end or len(self._data))
-            track(self, INDEX_KEY)
+            self._auto_track(self, INDEX_KEY)
             return res
         except ValueError:
             raise ValueError(f"{key} is not in list")
@@ -439,7 +478,7 @@ class Proxy(Generic[T]):
             warn("This is readonly")
             return
         self._data.insert(index, obj)
-        trigger(self, index, TriggerType.ADD)
+        self._auto_trigger(self, index, TriggerType.ADD)
 
     def reverse(self):
         if self._is_readonly:
@@ -449,7 +488,7 @@ class Proxy(Generic[T]):
         self._data.reverse()
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
             if old_item != new_item or type(old_item) != type(new_item):
-                trigger(self, index, TriggerType.SET)
+                self._auto_trigger(self, index, TriggerType.SET)
 
     def sort(self, key=None, reverse=False):
         if self._is_readonly:
@@ -466,7 +505,7 @@ class Proxy(Generic[T]):
 
         for index, (old_item, new_item) in enumerate(zip(old_value, self._data)):
             if old_item != new_item or type(old_item) != type(new_item):
-                trigger(self, index, TriggerType.SET)
+                self._auto_trigger(self, index, TriggerType.SET)
 
     # set 方法
 
@@ -477,7 +516,7 @@ class Proxy(Generic[T]):
         old_length = len(self._data)
         self._data.add(elmnt)
         if len(self._data) > old_length:
-            trigger(self, len(self._data) - 1, TriggerType.ADD)
+            self._auto_trigger(self, len(self._data) - 1, TriggerType.ADD)
 
     def difference_update(self, set_obj):
         if self._is_readonly:
@@ -487,7 +526,7 @@ class Proxy(Generic[T]):
         self._data.difference_update(set_obj)
         for index, item in enumerate(old_value):
             if item not in self._data:
-                trigger(self, index, TriggerType.DELETE)
+                self._auto_trigger(self, index, TriggerType.DELETE)
 
     def difference(self, set_obj):
         res = self._data.difference(set_obj)
@@ -503,7 +542,7 @@ class Proxy(Generic[T]):
                 warn("This is readonly")
                 return
             self._data.discard(value)
-            trigger(self, index, TriggerType.DELETE)
+            self._auto_trigger(self, index, TriggerType.DELETE)
 
     def intersection(self, set_obj, *args):
         if args:
@@ -523,13 +562,13 @@ class Proxy(Generic[T]):
             self._data.intersection_update(set_obj)
         for index, item in enumerate(old_value):
             if item not in self._data:
-                trigger(self, index, TriggerType.DELETE)
+                self._auto_trigger(self, index, TriggerType.DELETE)
 
     def isdisjoint(self, set_obj):
         res = False
         for index, item in enumerate(self._data):
             if item in set_obj:
-                track(self, index)
+                self._auto_track(self, index)
                 res = True
                 break
         return res
@@ -538,7 +577,7 @@ class Proxy(Generic[T]):
         res = True
         for index, item in enumerate(self._data):
             if item not in set_obj:
-                track(self, index)
+                self._auto_track(self, index)
                 res = False
                 break
         return res
@@ -548,7 +587,7 @@ class Proxy(Generic[T]):
         for set_item in set_obj:
             if set_item not in self._data:
                 for index, item in enumerate(self._data):
-                    track(self, index)
+                    self._auto_track(self, index)
                 res = True
                 break
         return res

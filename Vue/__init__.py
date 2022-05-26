@@ -205,24 +205,24 @@ def watch(source, cb: Callable, options={}):
         w_old_value = effect_fn()
 
 
-def create_reactive(obj, is_shallow=False, is_readonly=False):
-    return Proxy(obj, is_shallow, is_readonly)
+def create_reactive(obj, is_shallow=False, is_readonly=False, parent=None):
+    return Proxy(obj, is_shallow, is_readonly, parent)
 
 
-def reactive(obj: T) -> Proxy[T]:
-    return create_reactive(obj)
+def reactive(obj: T, parent=None) -> Proxy[T]:
+    return create_reactive(obj, parent=parent)
 
 
-def shallow_reactive(obj: T) -> Proxy[T]:
-    return create_reactive(obj, True)
+def shallow_reactive(obj: T, parent=None) -> Proxy[T]:
+    return create_reactive(obj, True, parent=parent)
 
 
-def readonly(obj: T) -> Proxy[T]:
-    return create_reactive(obj, False, True)
+def readonly(obj: T, parent=None) -> Proxy[T]:
+    return create_reactive(obj, False, True, parent=parent)
 
 
-def shallow_readonly(obj: T) -> Proxy[T]:
-    return create_reactive(obj, True, True)
+def shallow_readonly(obj: T, parent=None) -> Proxy[T]:
+    return create_reactive(obj, True, True, parent=parent)
 
 
 def ref(val):
