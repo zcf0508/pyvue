@@ -252,7 +252,7 @@ class Proxy(Generic[T]):
         return obj
 
     def __delitem__(self, key):
-        if hasattr(self._data, key):
+        if key in self._data:
             if self._is_readonly:
                 warn(f"{key} is readonly")
                 return
