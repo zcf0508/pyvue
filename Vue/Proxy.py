@@ -165,9 +165,16 @@ class Proxy(Generic[T]):
         self._is_readonly = is_readonly
 
     def __str__(self) -> str:
-        return 'Proxy '+str(self._data)
+        return "Proxy " + str(self._data)
 
     __repr__ = __str__
+
+    @staticmethod
+    def is_equal(obj_a, obj_b):
+
+        return (obj_a._data if isinstance(obj_a, Proxy) else obj_a) == (
+            obj_b._data if isinstance(obj_b, Proxy) else obj_b
+        )
 
     def __getitem__(self, key=-1):
         if isinstance(key, int) and key < 0:
