@@ -165,6 +165,23 @@ class Proxy(Generic[T]):
         self._is_readonly = is_readonly
         self._parent = parent
 
+    @staticmethod
+    def raw(target):
+        if isinstance(target,Proxy):
+            res = target._data
+        else:
+            res = target
+
+        if isinstance(res, dict):
+            for key in res:
+                res[key] = Proxy.raw(res[key])
+                    
+        if isinstance(res, list) or isinstance(res, set):
+            for index, val in enumerate(res):
+                res[index] = Proxy.raw(res[index])
+                    
+        return res
+
     def _auto_track(self, target, key):
         try:
             if self._parent:
