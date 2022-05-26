@@ -12,7 +12,10 @@ class TestRenderer(unittest.TestCase):
             {
                 "type": "h1",
                 "props": {"id": "foo"},
-                "children": [{"type": "p", "children": "hello world."}],
+                "children": [
+                    {"type": "p", "children": "hello "},
+                    {"type": "p", "children": "world."},
+                ],
             }
         )
 

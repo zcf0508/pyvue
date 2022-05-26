@@ -1,7 +1,9 @@
 import binascii
+import copy
 import os
 from typing import Any, Union
-from unittest.mock import patch
+
+from Vue.Proxy import Proxy
 
 Text = binascii.hexlify(os.urandom(8)).decode("utf-8")
 Fragment = binascii.hexlify(os.urandom(8)).decode("utf-8")
@@ -36,7 +38,12 @@ class RendererOption:
 
     def insert(self, el: dict, parent: dict, anchor=None):
         print(f"将 {el} 添加到 {parent} 下")
-        parent.setdefault("children", el)
+        if isinstance(parent.get("children", None), list):
+            parent["children"].append(el)
+        elif isinstance(parent.get("children", None), dict):
+            parent["children"] = [parent["children"], el]
+        else:
+            parent.setdefault("children", el)
         pass
 
     def create_text(self, text: str):
@@ -92,11 +99,23 @@ class RendererOption:
     def unmount(self, vnode: dict, container: dict):
         if vnode["type"] == Fragment:
             for child in vnode["children"]:
-                self.unmount(child, container)
+                self.unmount(child, vnode)
             return
         el = vnode["el"]
-        del container[el]
-        print(f"移除 {el}")
+        if Proxy.is_equal(container["children"], el):
+            del container["children"]
+
+            print(f"移除 {el}")
+        elif el in container["children"]:
+            for index, item in enumerate(container["children"]):
+                if Proxy.is_equal(item, el):
+
+                    del container["children"][index]
+
+            print(f"移除 {el}")
+
+            if len(container["children"]) == 0:
+                del container["children"]
 
     def path_children(self, n1: dict, n2: dict, container: dict):
         # 判断新子节点的类型是否为文本节点
@@ -168,5 +187,5 @@ class Renderer:
         else:
             if container.get("_vnode", None):
                 self._unmount(container["_vnode"], container)
-        container.setdefault("_vnode", vnode)
+        container.setdefault("_vnode", copy.deepcopy(vnode.__dict__)["_data"])
         pass
