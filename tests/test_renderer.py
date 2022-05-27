@@ -70,5 +70,7 @@ class TestRenderer(unittest.TestCase):
         time.sleep(3)
 
         vnode["children"].pop()
+        
+        vnode["children"].append({"type": "QPushButton", "props": {"text": "pyvue!"}})
 
         sys.exit(app.exec())

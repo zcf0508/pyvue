@@ -1,9 +1,8 @@
-import binascii
 import copy
-import os
 from typing import Dict, Union
 
 from PyQt6.QtWidgets import QWidget, QLayout
+from PyQt6 import sip
 
 from Vue.Proxy import Proxy
 from Vue.Renderer import Fragment, RendererOption, Text
@@ -20,17 +19,12 @@ class ElmentAgent:
         return None
 
     def save_element(self, element):
-        if element in self.elements.values():
-            for key, val in self.elements.items():
-                if val == element:
-                    return key
-        while True:
-            id = binascii.hexlify(os.urandom(8)).decode("utf-8")
-            if id not in self.elements.keys():
-                break
+        if id(element) in self.elements.keys(): 
+            return id(element)
 
-        self.elements.setdefault(id, element)
-        return id
+        e_id = id(element)
+        self.elements.setdefault(e_id, element)
+        return e_id
 
     def delete_element(self, id):
         if id in self.elements.keys():
@@ -66,7 +60,10 @@ class Pyqt6RendererOption(RendererOption):
 
     def mount_element(self, vnode, container):
         el = self.create_element(vnode["type"])
-        vnode.setdefault("el", self.element_agent.save_element(el))
+        if "el" not in vnode.keys():  
+            vnode.setdefault("el", self.element_agent.save_element(el))
+        else:
+            vnode["el"] = self.element_agent.save_element(el)
         if isinstance(vnode.get("children", ""), str):
             self.set_element_text(el, vnode.get("children", ""))
         elif isinstance(vnode.get("children", ""), list):
@@ -148,7 +145,16 @@ class Pyqt6RendererOption(RendererOption):
             return
 
         el = self.element_agent.take_element(vnode["el"])
-        el.setParent(None)
+        parent = el.parentWidget()
+
+        if isinstance(parent,QLayout) and isinstance(el,QWidget):
+            el.setParent(None)
+            parent.removeWidget(el)
+            
+        elif isinstance(parent,QWidget) and isinstance(el,QLayout):
+             sip.delete(el)
+        else:
+            el.deleteLater()
 
     def path_children(self, n1, n2, container):
         # 判断新子节点的类型是否为文本节点
