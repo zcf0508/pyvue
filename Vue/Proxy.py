@@ -82,12 +82,12 @@ def track(target, key):
         return
 
     # 根据 target 从桶中取得 deps_map   key-->effects
-    deps_map = bucket.get(target)
+    deps_map = bucket.get(id(target))
 
     # 如果不存在 deps_map ，那么新建一个 map 并与 target 关联
     if not deps_map:
         deps_map = dict()
-        bucket[target] = deps_map
+        bucket[id(target)] = deps_map
 
     # 再根据 key 取得 deps ，它是一个 set 类型，里面存储着所有与当前 key 相关的副作用函数： effcts
     deps = deps_map.get(key)
@@ -96,6 +96,9 @@ def track(target, key):
     if not deps:
         deps = set()
         deps_map[key] = deps
+
+    # print("+++++", id(target), key)
+    # print(active_effect)
 
     # 将当前激活的副作用函数添加到桶中
     deps.add(active_effect)
@@ -107,7 +110,7 @@ def track(target, key):
 
 def trigger(target, key, type):
     # 根据 target 从桶中取得 deps_map   key-->effects
-    deps_map = bucket.get(target)
+    deps_map = bucket.get(id(target))
     if not deps_map:
         return
 
@@ -144,6 +147,9 @@ def trigger(target, key, type):
             if effect_fn is not active_effect:
                 effect_to_run.add(effect_fn)
 
+    # print("-----", id(target), key, type)
+    # print(effect_to_run)
+
     for effect_fn in iter(effect_to_run):
         # 如果一个副作用函数存在调度器，则调用该调度器，并将副作用函数作为参数传递
         if "scheduler" in effect_fn.options and effect_fn.options["scheduler"]:
@@ -166,6 +172,7 @@ class Proxy(Generic[T]):
 
     @staticmethod
     def raw(target):
+        target = copy.deepcopy(target)
         if isinstance(target, Proxy):
             res = target._data
         else:
@@ -175,45 +182,49 @@ class Proxy(Generic[T]):
             for key in res:
                 res[key] = Proxy.raw(res[key])
 
-        if isinstance(res, list) or isinstance(res, set):
+        if isinstance(res, list):
             for index, val in enumerate(res):
                 res[index] = Proxy.raw(res[index])
+
+        if isinstance(res, set):
+            list_r = list(res)
+            for index, val in enumerate(list_r):
+                list_r[index] = Proxy.raw(list_r[index])
+            res = set(list_r)
 
         return res
 
     def _auto_track(self, target, key):
         try:
-            if self._parent:
+            if self._parent != None:
                 if isinstance(self._parent._data, dict):
-                    for p_key, p_val in self._parent.items():
+                    for p_key, p_val in self._parent._data.items():
                         if Proxy.is_equal(p_val, target):
-                            track(self._parent, p_key)
+                            self._auto_track(self._parent, key)
                 elif isinstance(self._parent._data, list) or isinstance(
                     self._parent._data, set
                 ):
-                    for p_index, p_val in enumerate(self._parent):
+                    for p_index, p_val in enumerate(self._parent._data):
                         if Proxy.is_equal(p_val, target):
-                            track(self._parent, p_index)
-            else:
-                track(target, key)
+                            self._auto_track(self._parent, key)
+            track(target, key)
         except BaseException as e:
             track(target, key)
 
     def _auto_trigger(self, target, key, type):
         try:
-            if self._parent:
+            if self._parent != None:
                 if isinstance(self._parent._data, dict):
-                    for p_key, p_val in self._parent.items():
+                    for p_key, p_val in self._parent._data.items():
                         if Proxy.is_equal(p_val, target):
-                            trigger(self._parent, p_key, TriggerType.SET)
+                            self._auto_trigger(self._parent, key, TriggerType.SET)
                 elif isinstance(self._parent._data, list) or isinstance(
                     self._parent._data, set
                 ):
-                    for p_index, p_val in enumerate(self._parent):
+                    for p_index, p_val in enumerate(self._parent._data):
                         if Proxy.is_equal(p_val, target):
-                            trigger(self._parent, p_index, TriggerType.SET)
-            else:
-                trigger(target, key, type)
+                            self._auto_trigger(self._parent, key, TriggerType.SET)
+            trigger(target, key, type)
         except BaseException as e:
             trigger(target, key, type)
 
@@ -225,9 +236,7 @@ class Proxy(Generic[T]):
     @staticmethod
     def is_equal(obj_a, obj_b):
 
-        return (obj_a._data if isinstance(obj_a, Proxy) else obj_a) == (
-            obj_b._data if isinstance(obj_b, Proxy) else obj_b
-        )
+        return Proxy.raw(obj_a) == Proxy.raw(obj_b)
 
     def __getitem__(self, key=-1):
         if isinstance(key, int) and key < 0:
@@ -240,9 +249,6 @@ class Proxy(Generic[T]):
         if self._is_shallow:
             return res
 
-        # 非只读的时候才需要建立响应联系
-        if not self._is_readonly:
-            self._auto_track(self, key)
 
         if res != None and (
             isinstance(res, dict) or isinstance(res, list) or isinstance(res, set)
@@ -250,10 +256,18 @@ class Proxy(Generic[T]):
 
             from Vue import reactive, readonly
 
-            self._data[key] = (
+            res = (
                 readonly(res, self) if self._is_readonly else reactive(res, self)
             )
-            return self._data[key]
+            
+            if not self._is_readonly:
+                self._auto_track(self, key)
+
+            return res
+
+        # 非只读的时候才需要建立响应联系
+        if not self._is_readonly:
+            self._auto_track(self, key)
 
         return res.value if is_ref(res) else res  # 返回属性值
 
@@ -269,12 +283,13 @@ class Proxy(Generic[T]):
         else:
             self._data[key] = new_value  # 设置属性值
 
-        # 比较新值与旧值，增加类型判断避免bool值与int值相等的问题
-        if old_value != new_value or type(old_value) != type(new_value):
+        # 比较新值与旧值
+        if not Proxy.is_equal(old_value, new_value) or old_value != new_value:
             self._auto_trigger(self, key, TriggerType.SET)
 
     def __iter__(self):
         if self._is_iter_:
+            # print('这里触发了__iter__')
             self._auto_track(self, ITERATE_KEY)
             return self._data.__iter__()
         else:
@@ -282,6 +297,7 @@ class Proxy(Generic[T]):
 
     def __next__(self):
         if self._is_iter_ and hasattr(self._data, "__next__"):
+            # print('这里触发了__next__')
             self._auto_track(self, ITERATE_KEY)
             return self._data.__next__()
         else:
@@ -436,13 +452,26 @@ class Proxy(Generic[T]):
     def get(self, key, default):
         try:
             res = self._data[key]
-            self._auto_track(self, key)
+            if not self._is_readonly:
+                self._auto_track(self, key)
+
+            if res != None and (
+                isinstance(res, dict) or isinstance(res, list) or isinstance(res, set)
+            ):
+
+                from Vue import reactive, readonly
+
+                self._data[key] = (
+                    readonly(res, self) if self._is_readonly else reactive(res, self)
+                )
+                return self._data[key]
             return res
         except KeyError:
             return default
 
     def items(self):
         if self._is_iter_:
+            # print('这里触发了 items')
             self._auto_track(self, ITERATE_KEY)
             return self._data.items()
         else:
@@ -450,6 +479,7 @@ class Proxy(Generic[T]):
 
     def keys(self):
         if self._is_iter_:
+            # print('这里触发了 keys')
             self._auto_track(self, ITERATE_KEY)
             return self._data.keys()
         else:
@@ -482,7 +512,7 @@ class Proxy(Generic[T]):
             ):
                 from Vue import reactive
 
-                return reactive(res, self)
+                return reactive(res, self._parent if self._parent else self)
             return res
         else:
             if default != self._data[key]:
@@ -503,11 +533,12 @@ class Proxy(Generic[T]):
                 ):
                     from Vue import reactive
 
-                    return reactive(default, self)
+                    return reactive(default, self._parent if self._parent else self)
                 return default
 
     def values(self):
         if self._is_iter_:
+            # print('这里触发了 values')
             self._auto_track(self, ITERATE_KEY)
             return self._data.values()
         else:
@@ -528,6 +559,7 @@ class Proxy(Generic[T]):
             if item == obj:
                 self._auto_track(self, index)
                 num += 1
+        # print('这里触发了 count')
         self._auto_track(self, ITERATE_KEY)
         return num
 
@@ -543,6 +575,7 @@ class Proxy(Generic[T]):
     def index(self, key, start=None, end=None):
         try:
             res = self._data.index(key, start or 0, end or len(self._data))
+            # print('这里触发了 index')
             self._auto_track(self, INDEX_KEY)
             return res
         except ValueError:
