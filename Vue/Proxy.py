@@ -314,7 +314,7 @@ class Proxy(Generic[T]):
         )
 
         return obj
-    
+
     def shallow_copy(self):
         from Vue import shallow_reactive, shallow_readonly
 
@@ -468,19 +468,43 @@ class Proxy(Generic[T]):
             if self._is_readonly:
                 warn("This is readonly")
                 return
-        res = self._data.setdefault(key, default)
+            res = self._data.setdefault(key, default)
 
-        if self._is_shallow:
+            if self._is_shallow:
+                return res
+
+            self._auto_trigger(self, key, TriggerType.ADD)
+
+            if res != None and (
+                isinstance(default, dict)
+                or isinstance(default, list)
+                or isinstance(default, set)
+            ):
+                from Vue import reactive
+
+                return reactive(res, self)
             return res
+        else:
+            if default != self._data[key]:
+                if self._is_readonly:
+                    warn("This is readonly")
+                    return
+                self._data[key] = default
 
-        self._auto_trigger(self, key, TriggerType.ADD)
+                if self._is_shallow:
+                    return default
 
-        if res != None and isinstance(res, dict):
-            from Vue import reactive
+                self._auto_trigger(self, key, TriggerType.SET)
 
-            self._data[key] = reactive(res, self)
-            return self._data[key]
-        return res
+                if default != None and (
+                    isinstance(default, dict)
+                    or isinstance(default, list)
+                    or isinstance(default, set)
+                ):
+                    from Vue import reactive
+
+                    return reactive(default, self)
+                return default
 
     def values(self):
         if self._is_iter_:
