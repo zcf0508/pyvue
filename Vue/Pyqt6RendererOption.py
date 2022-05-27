@@ -1,4 +1,5 @@
 import copy
+import re
 from typing import Dict, Union
 
 from PyQt6.QtWidgets import QWidget, QLayout
@@ -19,7 +20,7 @@ class ElmentAgent:
         return None
 
     def save_element(self, element):
-        if id(element) in self.elements.keys(): 
+        if id(element) in self.elements.keys():
             return id(element)
 
         e_id = id(element)
@@ -60,19 +61,22 @@ class Pyqt6RendererOption(RendererOption):
 
     def mount_element(self, vnode, container):
         el = self.create_element(vnode["type"])
-        if "el" not in vnode.keys():  
+
+        if "el" not in vnode.keys():
             vnode.setdefault("el", self.element_agent.save_element(el))
         else:
             vnode["el"] = self.element_agent.save_element(el)
-        if isinstance(vnode.get("children", ""), str):
+
+        if isinstance(Proxy.raw(vnode).get("children", ""), str):
             self.set_element_text(el, vnode.get("children", ""))
-        elif isinstance(vnode.get("children", ""), list):
-            for child in vnode.get("children", ""):
+        elif isinstance(Proxy.raw(vnode).get("children", None), list):
+            for index, _ in enumerate(vnode["children"]):
+                child = vnode["children"][index]
                 self.patch(None, child, el)
 
         if vnode.get("props", None):
-            for key, val in vnode["props"].items():
-                self.patch_props(el, key, None, val)
+            for key in vnode["props"].keys():
+                self.patch_props(el, key, None, vnode["props"][key])
 
         self.insert(el, container)
 
@@ -113,7 +117,8 @@ class Pyqt6RendererOption(RendererOption):
         elif type == Fragment:
             # 处理 Fragment 类型的 vnode
             if not n1:
-                for child in n2["children"]:
+                for index,_ in enumerate(n2["children"]):
+                    child = n2["children"][index]
                     self.patch(None, child, container)
             else:
                 self.path_children(n1, n2, container)
@@ -135,24 +140,27 @@ class Pyqt6RendererOption(RendererOption):
 
     def patch_props(self, el, key, pre_val, next_val):
         if key == "text":
-            el.setText(next_val)
+            el.setText(str(next_val))
+        elif re.search(r"^@", key):
+            getattr(el, key[1:]).connect(next_val)
         pass
 
     def unmount(self, vnode):
         if vnode["type"] == Fragment:
-            for child in vnode["children"]:
+            for index,_ in enumerate(vnode["children"]):
+                child = vnode["children"][index]
                 self.unmount(child, vnode)
             return
 
         el = self.element_agent.take_element(vnode["el"])
         parent = el.parentWidget()
 
-        if isinstance(parent,QLayout) and isinstance(el,QWidget):
+        if isinstance(parent, QLayout) and isinstance(el, QWidget):
             el.setParent(None)
             parent.removeWidget(el)
-            
-        elif isinstance(parent,QWidget) and isinstance(el,QLayout):
-             sip.delete(el)
+
+        elif isinstance(parent, QWidget) and isinstance(el, QLayout):
+            sip.delete(el)
         else:
             el.deleteLater()
 
@@ -162,7 +170,8 @@ class Pyqt6RendererOption(RendererOption):
             # 旧子节点的类型有三种可能：没有子节点，文本子节点，以及一组子节点
             # 只有当旧子节点为一组子节点时，才需要逐个卸载，其它情况下什么都不需要做
             if isinstance(n1.get("children", ""), list):
-                for child in n1["children"]:
+                for index,_ in enumerate(n1["children"]):
+                    child = n1["children"][index]
                     self.unmount(child, container)
             self.set_element_text(container, n2.get("children", ""))
         elif isinstance(n2.get("children", ""), list) or isinstance(
@@ -173,22 +182,26 @@ class Pyqt6RendererOption(RendererOption):
                 n1.get("children", "").__dict__["_data"], list
             ):
                 # TODO:diff
-                for child in n1["children"]:
+                for index,_ in enumerate(n1["children"]):
+                    child = n1["children"][index]
                     self.unmount(child)
-                for child in n2["children"]:
+                for index,_ in enumerate(n2["children"]):
+                    child = n2["children"][index]
                     self.patch(None, child, container)
                 pass
             else:
                 # 旧节点要么是文本子节点，要么不存在
                 # 无论哪种情况，我们都只需要将容器清空，然后将新的一组子节点逐个挂载
                 self.set_element_text(container, "")
-                for child in n2["children"]:
+                for index,_ in enumerate(n2["children"]):
+                    child = n2["children"][index]
                     self.patch(None, child, container)
         else:
             # 代码运行到这里，说明新子节点不存在
             # 旧子节点是一组子节点，只需逐个卸载即可
             if isinstance(n1.get("children", ""), list):
-                for child in n1["children"]:
+                for index,_ in enumerate(n1["children"]):
+                    child = n1["children"][index]
                     self.unmount(child, container)
             else:
                 self.set_element_text(container, "")
@@ -200,11 +213,11 @@ class Pyqt6RendererOption(RendererOption):
         new_props = n2.get("props", {})
 
         # 第一步，更新 props
-        for key, val in new_props.items():
-            self.patch_props(el, key, old_props.get(key, None), val)
-        for key, val in old_props.items():
+        for key in new_props.keys():
+            self.patch_props(el, key, old_props.get(key, None), new_props[key])
+        for key in old_props.keys():
             if key not in new_props:
-                self.patch_props(el, key, val, None)
+                self.patch_props(el, key, old_props[key], None)
 
         # 第二步，更新 children
         self.path_children(n1, n2, self.element_agent.take_element(el))

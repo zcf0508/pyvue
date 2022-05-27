@@ -40,7 +40,7 @@ class TestRenderer(unittest.TestCase):
     def test_2(self):
 
         app = QApplication(sys.argv)
-
+        
         vnode = reactive(
             {
                 "type": "QHBoxLayout",
@@ -67,10 +67,52 @@ class TestRenderer(unittest.TestCase):
 
         window.show()
 
-        time.sleep(3)
+        time.sleep(1)
 
         vnode["children"].pop()
         
         vnode["children"].append({"type": "QPushButton", "props": {"text": "pyvue!"}})
 
+        sys.exit(app.exec())
+
+    def test_3(self):
+
+        app = QApplication(sys.argv)
+
+        def add():
+            print("clicked!")
+            print(vnode["children"])
+            print(vnode["children"][0])
+            print(vnode["children"][0]["props"])
+            print(vnode["children"][0]["props"]["text"])
+            vnode["children"][0]["props"]["text"] += 1
+
+        vnode = reactive(
+            {
+                "type": "QVBoxLayout",
+                "children": [
+                    {"type": "QLabel", "props": {"text": 1}},
+                    {"type": "QPushButton", "props": {"text": "Add", "@clicked": add}},
+                ],
+            }
+        )
+
+        option = Pyqt6RendererOption()
+
+        renderer = Renderer(option)
+
+        window = QWidget()
+
+        window.resize(250, 200)
+        window.move(300, 300)
+        window.setWindowTitle("hello")
+
+        @effect
+        def render():
+            print("****")
+            print(id(vnode))
+            renderer.render(vnode, window)
+
+        window.show()
+        
         sys.exit(app.exec())
