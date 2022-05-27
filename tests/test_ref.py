@@ -4,7 +4,7 @@ from Vue import reactive, ref, to_ref, to_refs
 from Vue.ProxyRefs import ProxyRefs, proxy_refs
 
 
-class TestReactive(unittest.TestCase):
+class TestRef(unittest.TestCase):
     def test_1(self):
         obj = ref(1)
 
