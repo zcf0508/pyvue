@@ -80,11 +80,6 @@ class TestRenderer(unittest.TestCase):
         app = QApplication(sys.argv)
 
         def add():
-            print("clicked!")
-            print(vnode["children"])
-            print(vnode["children"][0])
-            print(vnode["children"][0]["props"])
-            print(vnode["children"][0]["props"]["text"])
             vnode["children"][0]["props"]["text"] += 1
 
         vnode = reactive(
@@ -109,8 +104,6 @@ class TestRenderer(unittest.TestCase):
 
         @effect
         def render():
-            print("****")
-            print(id(vnode))
             renderer.render(vnode, window)
 
         window.show()
