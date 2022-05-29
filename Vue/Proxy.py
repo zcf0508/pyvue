@@ -196,35 +196,51 @@ class Proxy(Generic[T]):
 
     def _auto_track(self, target, key):
         try:
-            if self._parent != None:
-                if isinstance(self._parent._data, dict):
-                    for p_key, p_val in self._parent._data.items():
+            if target._parent != None:
+                if isinstance(target._parent._data, dict):
+                    for p_key, p_val in target._parent._data.items():
                         if Proxy.is_equal(p_val, target):
-                            self._auto_track(self._parent, key)
-                elif isinstance(self._parent._data, list) or isinstance(
-                    self._parent._data, set
+                            self._auto_track(target._parent, p_key)
+                            break
+                    else:
+                        self._auto_track(target._parent, key)
+
+                elif isinstance(target._parent._data, list) or isinstance(
+                    target._parent._data, set
                 ):
-                    for p_index, p_val in enumerate(self._parent._data):
+                    for p_index, p_val in enumerate(target._parent._data):
                         if Proxy.is_equal(p_val, target):
-                            self._auto_track(self._parent, key)
-            track(target, key)
+                            self._auto_track(target._parent, p_index)
+                            break
+                    else:
+                        self._auto_track(target._parent, key)
+            else:
+                track(target, key)
         except BaseException as e:
             track(target, key)
 
     def _auto_trigger(self, target, key, type):
         try:
-            if self._parent != None:
-                if isinstance(self._parent._data, dict):
-                    for p_key, p_val in self._parent._data.items():
+            if target._parent != None:
+                if isinstance(target._parent._data, dict):
+                    for p_key, p_val in target._parent._data.items():
                         if Proxy.is_equal(p_val, target):
-                            self._auto_trigger(self._parent, key, TriggerType.SET)
-                elif isinstance(self._parent._data, list) or isinstance(
-                    self._parent._data, set
+                            self._auto_trigger(target._parent, p_key, TriggerType.SET)
+                            break
+                    else:
+                        self._auto_trigger(target._parent, key, type)
+
+                elif isinstance(target._parent._data, list) or isinstance(
+                    target._parent._data, set
                 ):
-                    for p_index, p_val in enumerate(self._parent._data):
+                    for p_index, p_val in enumerate(target._parent._data):
                         if Proxy.is_equal(p_val, target):
-                            self._auto_trigger(self._parent, key, TriggerType.SET)
-            trigger(target, key, type)
+                            self._auto_trigger(target._parent, p_index, TriggerType.SET)
+                            break
+                    else:
+                        self._auto_trigger(target._parent, key, type)
+            else:
+                trigger(target, key, type)
         except BaseException as e:
             trigger(target, key, type)
 
@@ -249,17 +265,14 @@ class Proxy(Generic[T]):
         if self._is_shallow:
             return res
 
-
         if res != None and (
             isinstance(res, dict) or isinstance(res, list) or isinstance(res, set)
         ):
 
             from Vue import reactive, readonly
 
-            res = (
-                readonly(res, self) if self._is_readonly else reactive(res, self)
-            )
-            
+            res = readonly(res, self) if self._is_readonly else reactive(res, self)
+
             if not self._is_readonly:
                 self._auto_track(self, key)
 
