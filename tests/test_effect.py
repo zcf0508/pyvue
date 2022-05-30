@@ -127,6 +127,27 @@ class TestEffect(unittest.TestCase):
 
         self.assertEqual(test_4_value, 2)
 
+    def test_4(self):
+        data = {"foo": True, "bar": True}
+        obj = Proxy(data)
 
-if __name__ == "__main__":
-    unittest.main()
+        @effect
+        def effect_fn1():
+            print("fn1 执行")
+
+            @effect
+            def effect_fn2():
+                print("fn2 执行")
+
+                obj["bar"]
+            
+            obj["foo"]
+
+        print("---")
+
+        obj["bar"] = False
+        
+        print("---")
+
+        obj["foo"] = False
+
