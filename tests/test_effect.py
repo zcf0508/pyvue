@@ -3,7 +3,7 @@ import threading
 import unittest
 import time
 
-from Vue.Proxy import Proxy, effect
+from Vue import Proxy, effect
 
 
 class TestEffect(unittest.TestCase):

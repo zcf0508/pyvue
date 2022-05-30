@@ -1,7 +1,6 @@
 import unittest
 
-from Vue import computed
-from Vue.Proxy import Proxy, effect
+from Vue import computed, Proxy, effect
 
 
 class TestComputed(unittest.TestCase):

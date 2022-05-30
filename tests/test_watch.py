@@ -1,8 +1,7 @@
 import time
 import unittest
 
-from Vue import watch
-from Vue.Proxy import Proxy, effect
+from Vue import watch, Proxy, effect
 
 
 class TestWatch(unittest.TestCase):

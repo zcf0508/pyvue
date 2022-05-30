@@ -1,7 +1,6 @@
 import unittest
 
-from Vue import reactive, shallow_reactive, readonly, shallow_readonly
-from Vue.Proxy import Proxy, effect
+from Vue import Proxy, effect, reactive, shallow_reactive, readonly, shallow_readonly
 
 
 class TestReactive(unittest.TestCase):
@@ -744,15 +743,15 @@ class TestReactive(unittest.TestCase):
         def effect_lambda2(bar):
             # for val in bar["baz"]:
             #     val
-            for index,_ in enumerate(bar["baz"]):
+            for index, _ in enumerate(bar["baz"]):
                 bar["baz"][index]
                 pass
-                
+
         @effect
         def effect_lambda1():
             global test_1_value
-            
-            bar = obj.get("bar",{})
+
+            bar = obj.get("bar", {})
             effect_lambda2(bar)
             test_1_value += 1
 
@@ -761,28 +760,29 @@ class TestReactive(unittest.TestCase):
         obj["bar"]["baz"][0] += 1
 
         self.assertEqual(test_1_value, 3)
-        
+
     def test_2(self):
         global test_1_value
         test_1_value = 1
 
-        
         def effect_lambda2():
             obj["bar"]["baz"][0]["value"] += 1
-            
-            
-        data = {"foo": 1, "bar": {"baz": [{"value":2}, {"value":3}]},"click":effect_lambda2}
+
+        data = {
+            "foo": 1,
+            "bar": {"baz": [{"value": 2}, {"value": 3}]},
+            "click": effect_lambda2,
+        }
         obj = reactive(data)
 
-                
         @effect
         def effect_lambda1():
             global test_1_value
-            
+
             print("*****")
             # for val in obj["bar"]["baz"]:
             #     val["value"]
-            for index,_ in enumerate(obj["bar"]["baz"]):
+            for index, _ in enumerate(obj["bar"]["baz"]):
                 val = obj["bar"]["baz"][index]["value"]
                 pass
 

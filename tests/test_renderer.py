@@ -4,11 +4,7 @@ import unittest
 
 from PyQt6.QtWidgets import QApplication, QWidget
 
-from Vue import reactive
-from Vue.Proxy import effect
-from Vue.Pyqt6RendererOption import Pyqt6RendererOption
-
-from Vue.Renderer import Renderer, RendererOption
+from Vue import reactive, effect, Pyqt6RendererOption, Renderer, RendererOption
 
 
 class TestRenderer(unittest.TestCase):
@@ -40,7 +36,7 @@ class TestRenderer(unittest.TestCase):
     def test_2(self):
 
         app = QApplication(sys.argv)
-        
+
         vnode = reactive(
             {
                 "type": "QHBoxLayout",
@@ -70,7 +66,7 @@ class TestRenderer(unittest.TestCase):
         time.sleep(1)
 
         vnode["children"].pop()
-        
+
         vnode["children"].append({"type": "QPushButton", "props": {"text": "pyvue!"}})
 
         sys.exit(app.exec())
@@ -107,5 +103,5 @@ class TestRenderer(unittest.TestCase):
             renderer.render(vnode, window)
 
         window.show()
-        
+
         sys.exit(app.exec())

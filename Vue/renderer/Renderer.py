@@ -2,7 +2,7 @@ import binascii
 import copy
 import os
 
-from Vue.Proxy import Proxy
+from ..reactivity.Proxy import Proxy
 
 Text = binascii.hexlify(os.urandom(8)).decode("utf-8")
 Fragment = binascii.hexlify(os.urandom(8)).decode("utf-8")
@@ -28,10 +28,11 @@ class RendererOption:
     def mount_element(self, vnode, container):
         el = self.create_element(vnode["type"])
         vnode.setdefault("el", el)
-        if isinstance(vnode.get("children", ""), str):
+        print(vnode['children'])
+        if isinstance(Proxy.raw(vnode.get("children", "")), str):
             self.set_element_text(el, vnode.get("children", ""))
-        elif isinstance(vnode.get("children", ""), list):
-            for child in vnode.get("children", ""):
+        elif isinstance(Proxy.raw(vnode.get("children", "")), list):
+            for child in vnode["children"]:
                 self.patch(None, child, el)
 
         if vnode.get("props", None):
@@ -48,9 +49,9 @@ class RendererOption:
 
     def insert(self, el, parent, anchor=None):
         print(f"将 {el} 添加到 {parent} 下")
-        if isinstance(parent.get("children", None), list):
+        if isinstance(Proxy.raw(parent.get("children", None)), list):
             parent["children"].append(el)
-        elif isinstance(parent.get("children", None), dict):
+        elif isinstance(Proxy.raw(parent.get("children", None)), dict):
             parent["children"] = [parent["children"], el]
         else:
             parent.setdefault("children", el)
@@ -129,16 +130,16 @@ class RendererOption:
 
     def path_children(self, n1, n2, container):
         # 判断新子节点的类型是否为文本节点
-        if isinstance(n2.get("children", ""), str):
+        if isinstance(Proxy.raw(n2.get("children", "")), str):
             # 旧子节点的类型有三种可能：没有子节点，文本子节点，以及一组子节点
             # 只有当旧子节点为一组子节点时，才需要逐个卸载，其它情况下什么都不需要做
-            if isinstance(n1.get("children", ""), list):
+            if isinstance(Proxy.raw(n1.get("children", "")), list):
                 for child in n1["children"]:
                     self.unmount(child, container)
-            self.set_element_text(container, n2.get("children", ""))
-        elif isinstance(n2.get("children", ""), list):
+            self.set_element_text(container, n2["children"])
+        elif isinstance(Proxy.raw(n2.get("children", "")), list):
             # 说明新子节点是一组子节点
-            if isinstance(n1.get("children", ""), list):
+            if isinstance(Proxy.raw(n1.get("children", "")), list):
                 # TODO:diff
                 for child in n1["children"]:
                     self.unmount(child, container)
@@ -154,7 +155,7 @@ class RendererOption:
         else:
             # 代码运行到这里，说明新子节点不存在
             # 旧子节点是一组子节点，只需逐个卸载即可
-            if isinstance(n1.get("children", ""), list):
+            if isinstance(Proxy.raw(n1.get("children", "")), list):
                 for child in n1["children"]:
                     self.unmount(child, container)
             else:

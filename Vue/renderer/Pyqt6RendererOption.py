@@ -5,8 +5,8 @@ from typing import Dict, Union
 from PyQt6.QtWidgets import QWidget, QLayout
 from PyQt6 import sip
 
-from Vue.Proxy import Proxy
-from Vue.Renderer import Fragment, RendererOption, Text
+from ..reactivity.Proxy import Proxy
+from .Renderer import Fragment, RendererOption, Text
 
 
 class ElmentAgent:
@@ -166,21 +166,17 @@ class Pyqt6RendererOption(RendererOption):
 
     def path_children(self, n1, n2, container):
         # 判断新子节点的类型是否为文本节点
-        if isinstance(n2.get("children", ""), str):
+        if isinstance(Proxy.raw(n2.get("children", "")), str):
             # 旧子节点的类型有三种可能：没有子节点，文本子节点，以及一组子节点
             # 只有当旧子节点为一组子节点时，才需要逐个卸载，其它情况下什么都不需要做
-            if isinstance(n1.get("children", ""), list):
+            if isinstance(Proxy.raw(n1.get("children", "")), list):
                 for index,_ in enumerate(n1["children"]):
                     child = n1["children"][index]
                     self.unmount(child, container)
             self.set_element_text(container, n2.get("children", ""))
-        elif isinstance(n2.get("children", ""), list) or isinstance(
-            n2.get("children", "").__dict__["_data"], list
-        ):
+        elif isinstance(Proxy.raw(n2.get("children", "")), list):
             # 说明新子节点是一组子节点
-            if isinstance(n1.get("children", ""), list) or isinstance(
-                n1.get("children", "").__dict__["_data"], list
-            ):
+            if isinstance(Proxy.raw(n1.get("children", "")), list):
                 # TODO:diff
                 for index,_ in enumerate(n1["children"]):
                     child = n1["children"][index]
@@ -199,7 +195,7 @@ class Pyqt6RendererOption(RendererOption):
         else:
             # 代码运行到这里，说明新子节点不存在
             # 旧子节点是一组子节点，只需逐个卸载即可
-            if isinstance(n1.get("children", ""), list):
+            if isinstance(Proxy.raw(n1.get("children", "")), list):
                 for index,_ in enumerate(n1["children"]):
                     child = n1["children"][index]
                     self.unmount(child, container)
