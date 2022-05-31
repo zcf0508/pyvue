@@ -137,7 +137,7 @@ class VLabel(PyQt6VComponent):
 
 
 class VHBoxLayout(PyQt6VComponent):
-    prop_keys: set[str] = {}
+    prop_keys: set[str] = set()
 
     def __init__(self, **kwargs) -> None:
         super().__init__("QHBoxLayout", **kwargs)
