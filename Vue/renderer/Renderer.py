@@ -6,6 +6,7 @@ from ..reactivity.Proxy import Proxy
 
 Text = binascii.hexlify(os.urandom(8)).decode("utf-8")
 Fragment = binascii.hexlify(os.urandom(8)).decode("utf-8")
+Slot = binascii.hexlify(os.urandom(8)).decode("utf-8")
 
 
 class RendererOption:
@@ -192,6 +193,6 @@ class Renderer:
         self._patch = option.patch
         self._mount_element = option.mount_element
         self._render = option.render
-
+    
     def render(self, vnode, container):
         self._render(vnode, container)

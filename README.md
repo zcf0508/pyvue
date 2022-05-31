@@ -14,6 +14,8 @@
 
 ![根据 vnode 生成 pyqt 界面](https://dubai-1254282834.cos.ap-nanjing.myqcloud.com/Snipaste_2022-05-26_18-21-52.png?imageMogr2/format/webp)
 ![click 事件演示](https://dubai-1254282834.cos.ap-nanjing.myqcloud.com/click.gif)
+![声明式组件](https://dubai-1254282834.cos.ap-nanjing.myqcloud.com/Snipaste_2022-05-31_16-45-25.png?imageMogr2/format/webp)
+
 # License
 
 [MIT](https://opensource.org/licenses/MIT)

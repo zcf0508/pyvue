@@ -5,6 +5,7 @@ import unittest
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from Vue import reactive, effect, Pyqt6RendererOption, Renderer, RendererOption
+from Vue.renderer.Pyqt6Components import VFragment, VLabel, VSlot, VWidget, VHBoxLayout
 
 
 class TestRenderer(unittest.TestCase):
@@ -97,6 +98,34 @@ class TestRenderer(unittest.TestCase):
         window.resize(250, 200)
         window.move(300, 300)
         window.setWindowTitle("hello")
+
+        @effect
+        def render():
+            renderer.render(vnode, window)
+
+        window.show()
+
+        sys.exit(app.exec())
+
+    def test_4(self):
+
+        component = VHBoxLayout()(
+            VFragment()(
+                VLabel(**{"text": "foo"}), VSlot(), VLabel(**{"text": "baz"})
+            ).set_slots(slots=[VWidget()(VLabel(**{"text": "bar"}))])
+        )
+
+        vnode = reactive(component.to_dict())
+
+        app = QApplication(sys.argv)
+
+        window = QWidget()
+        window.setWindowTitle("test4")
+
+        option = Pyqt6RendererOption()
+        renderer = Renderer(option)
+
+        print(vnode)
 
         @effect
         def render():
