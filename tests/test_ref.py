@@ -1,6 +1,6 @@
 import unittest
 
-from Vue import reactive, ref, to_ref, to_refs, ProxyRefs, proxy_refs
+from Vue import reactive, ref, to_ref, to_refs, proxy_refs
 
 
 class TestRef(unittest.TestCase):

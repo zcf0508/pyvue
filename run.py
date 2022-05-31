@@ -1,8 +1,7 @@
 import sys
 import time
 
-from Vue.Proxy import effect
-from Vue import ref
+from Vue import effect, ref
 from PyQt6.QtWidgets import QApplication, QWidget
 
 
