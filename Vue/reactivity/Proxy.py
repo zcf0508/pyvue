@@ -195,54 +195,10 @@ class Proxy(Generic[T]):
         return res
 
     def _auto_track(self, target, key):
-        try:
-            if target._parent != None:
-                if isinstance(target._parent._data, dict):
-                    for p_key, p_val in target._parent._data.items():
-                        if Proxy.is_equal(p_val, target):
-                            self._auto_track(target._parent, p_key)
-                            break
-                    else:
-                        self._auto_track(target._parent, key)
-
-                elif isinstance(target._parent._data, list) or isinstance(
-                    target._parent._data, set
-                ):
-                    for p_index, p_val in enumerate(target._parent._data):
-                        if Proxy.is_equal(p_val, target):
-                            self._auto_track(target._parent, p_index)
-                            break
-                    else:
-                        self._auto_track(target._parent, key)
-            else:
-                track(target, key)
-        except BaseException as e:
-            track(target, key)
+        track(target, key)
 
     def _auto_trigger(self, target, key, type):
-        try:
-            if target._parent != None:
-                if isinstance(target._parent._data, dict):
-                    for p_key, p_val in target._parent._data.items():
-                        if Proxy.is_equal(p_val, target):
-                            self._auto_trigger(target._parent, p_key, TriggerType.SET)
-                            break
-                    else:
-                        self._auto_trigger(target._parent, key, type)
-
-                elif isinstance(target._parent._data, list) or isinstance(
-                    target._parent._data, set
-                ):
-                    for p_index, p_val in enumerate(target._parent._data):
-                        if Proxy.is_equal(p_val, target):
-                            self._auto_trigger(target._parent, p_index, TriggerType.SET)
-                            break
-                    else:
-                        self._auto_trigger(target._parent, key, type)
-            else:
-                trigger(target, key, type)
-        except BaseException as e:
-            trigger(target, key, type)
+        trigger(target, key, type)
 
     def __str__(self) -> str:
         return "Proxy " + str(self._data)
@@ -271,12 +227,12 @@ class Proxy(Generic[T]):
 
             from Vue import reactive, readonly
 
-            res = readonly(res, self) if self._is_readonly else reactive(res, self)
+            self._data[key] = readonly(res, self) if self._is_readonly else reactive(res, self)
 
             if not self._is_readonly:
                 self._auto_track(self, key)
 
-            return res
+            return self._data[key]
 
         # 非只读的时候才需要建立响应联系
         if not self._is_readonly:
