@@ -1,5 +1,4 @@
-from email.policy import default
-from typing import Any, Callable
+from typing import Any, Callable, Union
 from warnings import warn
 
 from Vue.renderer.Renderer import Fragment, Slot
@@ -107,11 +106,13 @@ class VFragment(PyQt6VComponent):
     def __init__(self, **kwargs) -> None:
         super().__init__(Fragment, **kwargs)
 
-    def set_slots(self, name="default", slots=[]):
+    def set_slots(
+        self, name="default", slots: Union[list[PyQt6VComponent], "VFragment"] = []
+    ):
         for child in self.children[:]:
             if child.type == Slot and child.slot_name == name:
                 index = self.children.index(child)
-                for slot_child in slots:
+                for slot_child in slots if isinstance(slots, list) else slots.children:
                     self.children.insert(index, slot_child)
                     index += 1
                 self.children.remove(child)

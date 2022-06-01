@@ -109,10 +109,13 @@ class TestRenderer(unittest.TestCase):
 
     def test_4(self):
 
+        bar = VFragment()(
+            VWidget()(VLabel(**{"text": "bar"}))
+        )
         component = VHBoxLayout()(
             VFragment()(
                 VLabel(**{"text": "foo"}), VSlot(), VLabel(**{"text": "baz"})
-            ).set_slots(slots=[VWidget()(VLabel(**{"text": "bar"}))])
+            ).set_slots(slots=bar)
         )
 
         vnode = reactive(component.to_dict())
